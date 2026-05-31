@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken'
     'users',
     'cart',
     'products',
@@ -110,3 +111,9 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 AUTH_USER_MODEL= 'users.User'
+
+REST_FRAMEWORK = {
+  'DEFAULT_AUTHENTICATED_CLASSESS': [
+    'rest_framework.authenticate.TokenAuthentication',
+    ]
+}
