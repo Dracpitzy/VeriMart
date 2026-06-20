@@ -26,7 +26,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'rest_framework.authtoken'
+    'rest_framework.authtoken',
     'users',
     'cart',
     'products',
@@ -113,7 +113,10 @@ STATIC_URL = 'static/'
 AUTH_USER_MODEL= 'users.User'
 
 REST_FRAMEWORK = {
-  'DEFAULT_AUTHENTICATED_CLASSESS': [
+  'DEFAULT_AUTHENTICATION_CLASSESS': [
     'rest_framework.authenticate.TokenAuthentication',
     ]
 }
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

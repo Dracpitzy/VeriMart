@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import user, customer_profile
+from django.contrib.auth.password_validation import validate_password
 
 class UserSerializer(serializers.ModelSerializer):
   
@@ -37,7 +38,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     user = self.context['request'].user
     if not user.check_password(value):
       raise serializers.ValidationErrors('Old password is incorrect.')
-      return value
+    return value
       
   def update(self, instance, validated_data):
     instance.set_password(validated_data['new_password'])
