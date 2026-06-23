@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Shop, Shop_product, Shop_product
+from .models import Category, Shop, Shop_product, Shop_product, ShopReview
 
 class CategorySerializer(serializers.ModelSerializer):
   
@@ -42,3 +42,19 @@ class ProductSerializer(serializers.ModelSerializer):
       'created_at',
       'updated_at'
       ]
+      
+      
+class ShopReviewSerializer(serializers.ModelSerializer):
+  buyer_name = serializer.CharField(source='buyer.username', read_only=True)
+  
+  class Meta:
+    model = ShopReview
+    fields = '__all__'
+    read_only_fields = [
+      'buyer',
+      'created_at'
+    ]
+    def validate_rating(self, value):
+      if value < 1 or value > 5:
+        raise serializers.ValidationError("Rating must be between 1 and 5")
+      return value

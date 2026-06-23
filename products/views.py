@@ -115,7 +115,7 @@ class ShopView(APIView):
       )
       
   def get(self, request):
-    shops = Shop.objects.all()
+    shops = Shop.objects.filter(is_active=True)
     serializer = ShopSerializer(shops, many=True)
     return Response(
       serializer.data,
@@ -126,7 +126,7 @@ class ShopView(APIView):
 class ShopDetailView(APIView):
   def get(self, request, id):
     try:
-      shop = Shop.objects.get(id=id)
+      shop = Shop.objects.get(id=id, is_active=True)
     except Shop.DoesNotExist:
       return Response(
         {'error': 'Shop not found'},
@@ -242,4 +242,19 @@ class ScheduleShopDeleteDetailView(APIView):
     return Response(
       {'message': 'Shop deleted'}
       status=status.HTTP_204_NO_CONTENT
+      )
+      
+    
+class AllShopsView(APIView):
+  def get(self, request):
+    if not request.user.is_staff:
+      return Response(
+        {'error': 'Accessable to admin only'},
+        status=status.HTTP_403_FORBIDDEN
+        )
+    shops = Shop.objects.all()
+    serializer = ShopSerilizer(shops, many=True)
+    return Response(
+      serializer.data,
+      status=status.HTTP_200_OK
       )
