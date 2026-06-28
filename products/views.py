@@ -74,7 +74,6 @@ class CategoryDetailView(APIView):
       status=status.HTTP_400_BAD_REQUEST
       )
     
-    
   def delete(self, request, id):
     if not request.user.is_staff:
       return Response(
@@ -190,8 +189,9 @@ class ScheduleShopDeleteView(APIView):
       serializer.data,
       status=status.HTTP_200_OK
       )
-  
-  def delete(self, request):
+ 
+'''
+ def delete(self, request):
     if not request.user.is_staff:
       return Response(
         {'error': 'Accessable to admin only'},
@@ -203,7 +203,7 @@ class ScheduleShopDeleteView(APIView):
       {'message': f'{result[0]} shops deleted'},
       status=status.HTTP_200_OK
       )
-      
+'''     
   
 class ScheduleShopDeleteDetailView(APIView):
   def get(self, request, id):
@@ -525,7 +525,7 @@ class ProductView(APIView):
       )
       
   def get(self, request):
-    products = Product.objects.all()
+    products = Product.objects.filter(is_deleted=False)
     serializer =  ShopSerializer(products, many=True)
     return Response(
       serializer.data,
@@ -536,7 +536,7 @@ class ProductView(APIView):
 class ProductDetailView(APIView):
   def get(self, request, product_id):
     try:
-      product = Product.objects.get(id=product_id)
+      product = Product.objects.get(id=product_id, is_deleted=False)
     except Product.DoesNotExist:
       return Response(
         {'error': 'product not found'},
@@ -547,7 +547,7 @@ class ProductDetailView(APIView):
     
   def put(self, request, product_id):
     try:
-      product = Product.object.get(id=product_id)
+      product = Product.object.get(id=product_id, is_deleted=False)
     except Product.DoesNotExist:
       return Response(
         {'error': 'Product not found'},
@@ -593,7 +593,7 @@ class ProductDetailView(APIView):
 class ProductDeleteSchedule(APIView):
   def put(self, request, product_id):
     try:
-      product = Product.objects.get(id=product_id)
+      product = Product.objects.get(id=product_id, is_deleted=False)
     except Product.DoesNotExist:
       return Response(
         {'error': 'Product not found'},
@@ -608,5 +608,39 @@ class ProductDeleteSchedule(APIView):
     product.save()
     return Response(
       {'message': 'Product removed'},
+      status=status.HTTP_200_OK
+      )
+      
+  def get(self, request, product_id):
+    if not request.user.is_staff:
+      return Response(
+        {'error': 'Unauthorized to perform this action'},
+        status=status.HTTP_401_UNAUTHORIZED
+        )
+    try:
+      product = Product.objects.get(id=product_id, is_deleted=True)
+    except Product.DoesNotExist:
+      return Response(
+        {'error': 'Product not found'},
+        status=status.HTTP_404_NOT_FOUND
+        )
+    serializer = ProductSerializer(data=request.data)
+    return Response(
+      serializer.data,
+      status=status.HTTP_200_OK
+      )
+      
+    
+class ViewDeletedProducts(APIView):
+  def get(self, request):
+    if not request.user.is_staff:
+      return Response(
+        {'error': 'Unauthorized to perform this action'},
+        status=status.HTTP_401_UNAUTHORIZED
+        )
+    products = Product.objects.filter(is_deleted=True)
+    serializer = ProductSerializer(products, many=True)
+    return Response(
+      serializer.data,
       status=status.HTTP_200_OK
       )

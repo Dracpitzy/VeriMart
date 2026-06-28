@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.authtoken.models import token
+from rest_framework.authtoken.models import Token
 from .models import customer_profile
 from .serializers import UserSerializer, Customer_profileSerializer, ChangePasswordSerializer
 
@@ -72,7 +72,7 @@ class ChangePasswordView(APIView):
   
   def put(self, request):
     user = request.user
-    serializer = ChangePasswordSerializer(user, data=request.data context={'request': request})
+    serializer = ChangePasswordSerializer(user, data=request.data, context={'request': request})
     
     if serializer.is_valid():
       serializer.save()
