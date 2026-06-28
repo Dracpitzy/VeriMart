@@ -15,7 +15,9 @@ class ShopSerializer(serializers.ModelSerializer):
     fields = '__all__'
     read_only_fields = [
       'created_at',
-      'updated_at'
+      'updated_at',
+      'owner',
+      'shop'
       ]
     
     
@@ -28,7 +30,9 @@ class Shop_productSerializer(serializers.ModelSerializer):
     fields = '__all__'
     read_only_fields = [
       'created_at',
-      'updated_at'
+      'updated_at',
+      'shop',
+      'is_available'
       ]
     
   
@@ -40,7 +44,9 @@ class ProductSerializer(serializers.ModelSerializer):
     fields = '__all__'
     read_only_fields = [
       'created_at',
-      'updated_at'
+      'updated_at',
+      'user',
+      'is_deleted'
       ]
       
       
