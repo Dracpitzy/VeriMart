@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .models import Category, Shop, Shop_product, Product, ShopReview
 from .serializers import CategorySerializer, ShopSerializer, Shop_productSerializer, ProductSerializer, ShopReviewSerializer
-
+from orders.models import Order
 
 class CategoryView(APIView):
   
@@ -642,5 +642,26 @@ class ViewDeletedProducts(APIView):
     serializer = ProductSerializer(products, many=True)
     return Response(
       serializer.data,
+      status=status.HTTP_200_OK
+      )
+      
+      
+class CategoryProductShop_productView(APIView):
+  def get(self, request, category_id):
+    try:
+      category = Category.objects.get(id=category_id)
+    except Category.DoesNotExist:
+      return Response(
+        {'error': 'Category not found'},
+        status=status.HTTP_404_NOT_FOUND
+        )
+    products = category.products.filter(is_deleted=False)
+    serializer = ProductSerializer(products, many=True)
+    shop_products = category.shop_products.filter(is_available=True)
+    shop_productserializer = Shop_productSerializer(shop_products, many=True)
+    return Response(
+      {'products': serializer.data,
+        'shop_products': shop_productserializer.data
+      },
       status=status.HTTP_200_OK
       )

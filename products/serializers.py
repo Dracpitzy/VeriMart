@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Shop, Shop_product, Shop_product, ShopReview
+from .models import Category, Shop, Product, Shop_product, ShopReview
 
 class CategorySerializer(serializers.ModelSerializer):
   
@@ -51,7 +51,7 @@ class ProductSerializer(serializers.ModelSerializer):
       
       
 class ShopReviewSerializer(serializers.ModelSerializer):
-  buyer_name = serializer.CharField(source='buyer.username', read_only=True)
+  buyer_name = serializers.CharField(source='buyer.username', read_only=True)
   
   class Meta:
     model = ShopReview

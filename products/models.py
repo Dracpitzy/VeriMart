@@ -1,8 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.contrib.auth import get_user_model
+from django.conf import settings
 
-User = get_user_model()
 
 class Category(models.Model):
   name = models.CharField(max_length=100, unique=True)
@@ -12,11 +11,11 @@ class Category(models.Model):
     
   
 class Shop(models.Model):
-  owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name='shop')
+  owner = models.OneToOneField(setting.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='shop')
   name = models.CharField(max_length=200, unique=True)
   description = models.TextField()
   logo = models.ImageField(upload_to='shops/logos/')
-  is_active = models.BoleanField(default=True)
+  is_active = models.BooleanField(default=True)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
   
@@ -32,7 +31,7 @@ class Shop_product(models.Model):
   stock = models.PositiveIntegerField(default=0)
   price = models.DecimalField(max_digits=10, decimal_places=2)
   images = models.ImageField(upload_to='shop_products/')
-  is_available = models.BoleanField(default=True)
+  is_available = models.BooleanField(default=True)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
   
@@ -48,7 +47,7 @@ class Product(models.Model):
   price = models.DecimalField(max_digits=10, decimal_places=2)
   stock = models.PositiveIntegerField(default=0)
   image = models.ImageField(upload_to='products/')
-  is_deleted = models.BoleanField(default=False)
+  is_deleted = models.BooleanField(default=False)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
   def __str__(self):
@@ -60,12 +59,12 @@ class ShopReview(models.Model):
   buyer = models.ForeignKey(User, on_delete=models.CASCADE)
   rating = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
   comment = models.TextField(blank=True)
-  is_deleted = models.BoleanField(default=False)
+  is_deleted = models.BooleanField(default=False)
   created_at = models.DateTimeField(auto_now_add=True)
   
   class Meta:
     unique_together = ('shop', 'buyer')
-    constraints = [models.CheckConstraint(check=models.Q(rating__gte=1) & models.Q(rating__lte=5), name='rating_between_1_and_5')]
+    constraints = [models.CheckConstraint(condition=models.Q(rating__gte=1) & models.Q(rating__lte=5), name='rating_between_1_and_5')]
     
   def __str__(self):
     return f"{self.buyer} rated {self.shop} - {self.rating}"
