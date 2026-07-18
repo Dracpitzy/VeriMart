@@ -16,7 +16,7 @@ class Cart(models.Model):
   
   @property
   def total_price(self):
-    return sum(item.subtotal for item in self.items.all(), start=0)
+    return sum(item.subtotal for item in self.items.all())
   
   
   
@@ -30,19 +30,19 @@ class CartItem(models.Model):
   
   class Meta:
     constraints = [
-      models.CheckConstraints(
+      models.CheckConstraint(
         condition=(
           Q(product__isnull=False, shop_product__isnull=True)
           | Q(product__isnull=True, shop_product__isnull=False)
         ),
         name='cartitem_product_xor_shop_product',
       ),
-      models.CheckConstraints(
+      models.CheckConstraint(
         condition=Q(quantity__gte=1),
         name='cartitem_item_quantity_min_1',
       ),
-      models.UniqueConstraints(fields=['cart', 'product'], name='unique_product_per_cart'),
-      models.UniqueConstraints(fields=['cart', 'shop_product'], name='unique_shop_product_per_cart'),
+      models.UniqueConstraint(fields=['cart', 'product'], name='unique_product_per_cart'),
+      models.UniqueConstraint(fields=['cart', 'shop_product'], name='unique_shop_product_per_cart'),
     ]
 
   def clean(self):

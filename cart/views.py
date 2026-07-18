@@ -14,7 +14,7 @@ class CartDetailView(APIView):
   permission_classes = [IsAuthenticated]
   
   def get(self, request):
-    cart, _: Cart.objects.get_or_create(user=request.user)
+    cart, _ = Cart.objects.get_or_create(user=request.user)
     serializer = CartSerializer(cart)
     return Response(serializer.data, status=status.HTTP_200_ok)
     
@@ -56,3 +56,12 @@ class CartItemDeleteView(APIView):
       
     item.delete()
     return Response({'message': 'Cart item deleted'}, status=status.HTTP_204_NO_CONTENT)
+    
+    
+class AdminCartsView(APIView):
+  permission_classes = [IsAdminUser]
+  
+  def get(self, request):
+    carts = Cart.objects.all()
+    serializer = CartSerializer(cart, many=True)
+    return Response(serialier.data, status=status.HTTP_200_ok)

@@ -11,7 +11,7 @@ class Category(models.Model):
     
   
 class Shop(models.Model):
-  owner = models.OneToOneField(setting.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='shop')
+  owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='shop')
   name = models.CharField(max_length=200, unique=True)
   description = models.TextField()
   logo = models.ImageField(upload_to='shops/logos/')
@@ -30,7 +30,7 @@ class Shop_product(models.Model):
   description = models.TextField()
   stock = models.PositiveIntegerField(default=0)
   price = models.DecimalField(max_digits=10, decimal_places=2)
-  images = models.ImageField(upload_to='shop_products/')
+  image = models.ImageField(upload_to='shop_products/')
   is_available = models.BooleanField(default=True)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
@@ -40,7 +40,7 @@ class Shop_product(models.Model):
   
 
 class Product(models.Model):
-  user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product')
+  user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='product')
   category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='products')
   name = models.CharField(max_length=100)
   description = models.TextField()
@@ -56,7 +56,7 @@ class Product(models.Model):
     
 class ShopReview(models.Model):
   shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='reviews')
-  buyer = models.ForeignKey(User, on_delete=models.CASCADE)
+  buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
   rating = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
   comment = models.TextField(blank=True)
   is_deleted = models.BooleanField(default=False)

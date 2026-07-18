@@ -6,12 +6,12 @@ from products.models import Product, Shop_product
 
 class Order(models.Model):
   STATUS_CHOICES = [
-    ('pending' 'Pending'),
-    ('processing' 'Processing'),
-    ('shipped' 'Shipped'),
-    ('delivered' 'Delivered'),
-    ('cancelled' 'Cancelled')
-    ]
+    ('pending', 'Pending'),
+    ('processing', 'Processing'),
+    ('shipped', 'Shipped'),
+    ('delivered', 'Delivered'),
+    ('cancelled', 'Cancelled')
+  ]
     
   user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
   status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -41,7 +41,8 @@ class OrderItem(models.Model):
       raise ValidationError('An order item must have either a product or a shop product')
   
   def __str__(self):
-    return f"{self.quantity} x {self.product.name}"
+    name = self.product.name if self.product else self.shop_product.name
+    return f"{self.quantity} x {name}"
     
   @property
   def subtotal(self):
