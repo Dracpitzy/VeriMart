@@ -109,7 +109,7 @@ class ShopView(APIView):
         status=status.HTTP_200_OK
         )
     return Response(
-      serializer.error,
+      serializer.errors,
       status=status.HTTP_400_BAD_REQUEST
       )
       
@@ -526,7 +526,7 @@ class ProductView(APIView):
       
   def get(self, request):
     products = Product.objects.filter(is_deleted=False)
-    serializer =  ShopSerializer(products, many=True)
+    serializer = ProductSerializer(products, many=True)
     return Response(
       serializer.data,
       status=status.HTTP_200_OK
@@ -547,7 +547,7 @@ class ProductDetailView(APIView):
     
   def put(self, request, product_id):
     try:
-      product = Product.object.get(id=product_id, is_deleted=False)
+      product = Product.objects.get(id=product_id, is_deleted=False)
     except Product.DoesNotExist:
       return Response(
         {'error': 'Product not found'},
