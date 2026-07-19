@@ -69,3 +69,22 @@ class ShopReview(models.Model):
   def __str__(self):
     return f"{self.buyer} rated {self.shop} - {self.rating}"
   
+
+class ProductReview(models.Model):
+  product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True, related_name='reviews')
+  shop_product = models.ForeignKey(Shop_product, on_delete=models.CASCADE, null=True, blank=True, related_name='reviews')
+  buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+  rating = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+  comment = models.TextField(blank=True)
+  is_deleted = models.BooleanField(default=False)
+  created_at = models.DateTimeField(auto_now_add=True)
+  
+  class Meta:
+    constraints = [
+      models.CheckConstraint(
+        condition=models.Q(rating__gte=1) & models.Q(rating__lte=5), name='product_rating_between_1_and_5'
+      )
+    ]
+    
+  def __str__(self):
+    return f"{self.buyer} reviewed {self.product or self.shop_product} - {self.rating}"

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Shop, Product, Shop_product, ShopReview
+from .models import Category, Shop, Product, Shop_product, ShopReview, ProductReview
 
 class CategorySerializer(serializers.ModelSerializer):
   
@@ -60,7 +60,30 @@ class ShopReviewSerializer(serializers.ModelSerializer):
       'buyer',
       'created_at'
     ]
-    def validate_rating(self, value):
-      if value < 1 or value > 5:
-        raise serializers.ValidationError("Rating must be between 1 and 5")
-      return value
+  def validate_rating(self, value):
+    if value < 1 or value > 5:
+      raise serializers.ValidationError("Rating must be between 1 and 5")
+    return value
+      
+    
+class ProductReviewSerializer(serializers.ModelSerializer):
+  buyer_name = serializers.CharField(source='buyer.username', read_only=True)
+  
+  class Meta:
+    model = ProductReview
+    fields = [
+      'id', 'product', 'shop_product', 'buyer', 'buyer_name', 'rating', 'comment', 'is_deleted', 'created_at'
+    ]
+    
+  def validate_rating(self, value):
+    if value < 1 or value > 5:
+      raise serializers.ValidationError("Rating must be between 1 and 5")
+    return value
+    
+  def validate(self, data):
+    if not data.get('product') and not data.get('shop_product'):
+      raise serializers.ValidationError("A review must belong to either a product or a shop product.")
+    if data.get('product') and data.get('shop_product'):
+      raise serializers.ValidationError("A review cannot belong to both a product and a shop product.")
+    return data
+    
