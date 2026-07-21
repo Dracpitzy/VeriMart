@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import CategoryView, CategoryDetailView, ShopView, ShopDetailView, ScheduleShopDeleteView, ScheduleShopDeleteDetailView, AllShopsView, ShopReviewView, ShopReviewDetailView, Shop_productView, Shop_productDetailView, Shop_productNotAvailableView, Shop_productAvailableView, Shop_productViewUnavailableView, ProductView, ProductDetailView, ProductDeleteSchedule, ViewDeletedProducts, CategoryProductShop_productView
+from .views import CategoryView, CategoryDetailView, ShopView, ShopDetailView, ScheduleShopDeleteView, ScheduleShopDeleteDetailView, AllShopsView, ShopReviewView, ShopReviewDetailView, Shop_productView, Shop_productDetailView, Shop_productNotAvailableView, Shop_productAvailableView, Shop_productViewUnavailableView, ProductView, ProductDetailView, ProductDeleteSchedule, ViewDeletedProducts, CategoryProductShop_productView, ProductReviewView, ProductReviewDetailView
 
 
 urlpatterns = [
@@ -21,5 +21,8 @@ urlpatterns = [
   path('product_details/<int:product_id>/', ProductDetailView.as_view()),
   path('deleted_products/<int:product_id>/', ProductDeleteSchedule.as_view()),
   path('view_deleted_product/<int:product_id>/', ViewDeletedProducts.as_view()),
-  path('category-products/<int:category_id>/', CategoryProductShop_productView.as_view())
+  path('category-products/<int:category_id>/', CategoryProductShop_productView.as_view()),
+  path('products/<int:product_id>/reviews/', ProductReviewView.as_view()),
+  path('shop-products/<int:shop_product_id>/reviews/', ProductReviewView.as_view()),
+  path('reviews/<int:review_id>/', ProductReviewDetailView.as_view())
   ]

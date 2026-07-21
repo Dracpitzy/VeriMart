@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from .models import Category, Shop, Shop_product, Product, ShopReview
-from .serializers import CategorySerializer, ShopSerializer, Shop_productSerializer, ProductSerializer, ShopReviewSerializer
+from .models import Category, Shop, Shop_product, Product, ShopReview, ProductReview
+from .serializers import CategorySerializer, ShopSerializer, Shop_productSerializer, ProductSerializer, ShopReviewSerializer, ProductReviewSerializer
 from orders.models import Order
 
 class CategoryView(APIView):
@@ -665,3 +665,98 @@ class CategoryProductShop_productView(APIView):
       },
       status=status.HTTP_200_OK
       )
+      
+      
+class ProductReviewView(APIView):
+  def get(self, request, product_id=None, shop_product_id=None):
+    
+    if product_id:
+      reviews = ProductReview.objects.filter(product__id=product_id, is_deleted=False)
+    elif shop_product_id:
+      reviews = ProductReview.objects.filter(shop_product__id=shop_product_id, is_deleted=False)
+    else:
+      return Response(
+        {'error': 'No product specified'}, status=status.HTTP_400_BAD_REQUEST
+      )
+    serializer = ProductReviewSerializer(reviews, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+    
+  def post(self, request, product_id=None, shop_product_id=None):
+    if not request.user.is_authenticated:
+      return Response({'error': 'Login to leave reviews on products'}, status=status.HTTP_400_BAD_REQUEST)
+    product = None
+    shop_product = None
+    
+    if product_id:
+      try:
+        product = Product.objects.get(id=product_id)
+      except Product.DoesNotExist:
+        return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+      has_bought = Order.objects.filter(buyer=request.user, items__product=product).exists()
+      if not has_bought:
+        return Response({'error': 'You must purchase this product before reviewing'}, status=status.HTTP_400_BAD_REQUEST)
+      review_count = ProductReview.objects.filter(product=product, buyer=request.user).count()
+      if review_count >= 3:
+        return Response({'error': 'You can only review a product three times'}, status=status.HTTP_400_BAD_REQUEST)
+    elif shop_product_id:
+      try:
+        shop_product = Shop_product.objects.get(id=shop_product_id)
+      except Shop_product.DoesNotExist:
+        return Response(
+          {'error': 'Product not found'},
+          status=status.HTTP_404_NOT_FOUND
+        )
+      has_bought = Order.objects.filter(buyer=request.data, items__shop_product=shop_product).exists()
+      if not has_bought:
+        return Response({'error': 'You must purchase this product before reviewing'}, status=status.HTTP_400_BAD_REQUEST)
+      review_count = ProductReview.objects.filter(shop_product=shop_product, buyer=request.user).count()
+      if review_count >= 3:
+        return Response({'error': 'You can only review a product three times'}, status=status.HTTP_400_BAD_REQUEST)
+    serializer = ProductReviewSerializer(data=request.data)
+    if serializer.is_valid():
+      serializer.save(buyer=request.user, product=product, shop_product=shop_product)
+      return Response(
+        serializer.data,
+        status=status.HTTP_200_OK
+      )
+    return Response(
+      serializers.errors,
+      status=status.HTTP_400_BAD_REQUEST
+    )
+    
+    
+class ProductReviewDetailView(APIView):
+  def get(self, request, review_id):
+    try:
+      review = ProductReview.objects.get(id=review_id, is_deleted=False)
+    except ProductReview.DoesNotExist:
+      return Response(
+        {'error': 'Review not found'},
+        status=status.HTTP_404_NOT_FOUND
+      )
+    serializer = ProductReviewSerializer(review)
+    return Response(
+      serializer.data,
+      status=status.HTTP_200_OK
+    )
+    
+  def put(self, request, review_id):
+    try:
+      review = ProductReview.objects.get(id=review_id, is_deleted=False)
+    except ProductReview.DoesNotExist:
+      return Response(
+        {'Review not foud'},
+        status=status.HTTP_404_NOT_FOUND
+      )
+    if review.buyer != request.user:
+      return Response(
+        {'error': 'Not your review'},
+        status=status.HTTP_403_FORBIDDEN
+      )
+    review.is_deleted = True
+    review.save()
+    return Response(
+      {'message': 'Review deleted successfully'},
+      status=status.HTTP_200_OK
+    )
+      
