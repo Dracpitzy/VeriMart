@@ -2,8 +2,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from .models import Category, Shop, Shop_product, Product, ShopReview, ProductReview
-from .serializers import CategorySerializer, ShopSerializer, Shop_productSerializer, ProductSerializer, ShopReviewSerializer, ProductReviewSerializer
+from django.db import transaction
+from .models import Category, Shop, ProductImage, Shop_product, Product, ShopReview, ProductReview
+from .serializers import CategorySerializer, ProductImageSerializer, ShopSerializer, Shop_productSerializer, ProductSerializer, ShopReviewSerializer, ProductReviewSerializer
 from orders.models import Order
 
 class CategoryView(APIView):
@@ -190,20 +191,20 @@ class ScheduleShopDeleteView(APIView):
       status=status.HTTP_200_OK
       )
  
-'''
- def delete(self, request):
-    if not request.user.is_staff:
-      return Response(
-        {'error': 'Accessable to admin only'},
-        status=status.HTTP_403_FORBIDDEN
-        )
-    shops = Shop.objects.filter(is_active=False)
-    result = shops.delete()
-    return Response(
-      {'message': f'{result[0]} shops deleted'},
-      status=status.HTTP_200_OK
-      )
-'''     
+
+# def delete(self, request):
+ #   if not request.user.is_staff:
+ #     return Response(
+  #      {'error': 'Accessable to admin only'},
+ #       status=status.HTTP_403_FORBIDDEN
+ #       )
+ #   shops = Shop.objects.filter(is_active=False)
+ #   result = shops.delete()
+  #  return Response(
+  #    {'message': f'{result[0]} shops deleted'},
+  #    status=status.HTTP_200_OK
+  #    )
+    
   
 class ScheduleShopDeleteDetailView(APIView):
   def get(self, request, id):
@@ -364,7 +365,13 @@ class Shop_productView(APIView):
         )
     serializer = Shop_productSerializer(data=request.data)
     if serializer.is_valid():
-      serializer.save(shop=shop)
+      with transaction.atomic:
+        shop_product = serializer.save(shop=shop)
+        images = request.FILES.getlist('images')
+        if len(images) > 5:
+          return Response({'error': 'Maximum of 5 images allowed'}, status=status.HTTP_400_BAD_REQUEST)
+        for image in images:
+          ProductImage.objects.create(shop_product=shop_product, image=image)
       return Response(
         serializer.data,
         status=status.HTTP_201_CREATED
@@ -417,7 +424,7 @@ class Shop_productDetailView(APIView):
       return Response(serializer.data, status=status.HTTP_200_OK)
     return Response(
       serializer.errors,
-      statua=status.HTTP_400_BAD_REQUEST
+      status=status.HTTP_400_BAD_REQUEST
       )
     
   def delete(self, request, id):
@@ -479,7 +486,8 @@ class Shop_productAvailableView(APIView):
     product.is_available = True
     product.save()
     return Response(
-      {'message': 'Product available'}
+      {'message': 'Product available'},
+      status=status.HTTP_200_OK
       )
       
         
@@ -514,7 +522,13 @@ class ProductView(APIView):
         )
     serializer = ProductSerializer(data=request.data)
     if serializer.is_valid():
-      serializer.save(user=request.user)
+      with transaction.atomic():
+        product = serializer.save(user=request.user)
+        images = request.FILES.getlist('images')
+        if len(images) > 5:
+          return Response({'error': 'Maximum of 5 images per product'}, status=status.HTTP_400_BAD_REQUEST)
+        for image in images:
+          ProductImage.objects.create(product=product, image=image)
       return Response(
         serializer.data,
         status=status.HTTP_201_CREATED
@@ -624,7 +638,7 @@ class ProductDeleteSchedule(APIView):
         {'error': 'Product not found'},
         status=status.HTTP_404_NOT_FOUND
         )
-    serializer = ProductSerializer(data=request.data)
+    serializer = ProductSerializer(product)
     return Response(
       serializer.data,
       status=status.HTTP_200_OK
@@ -759,4 +773,69 @@ class ProductReviewDetailView(APIView):
       {'message': 'Review deleted successfully'},
       status=status.HTTP_200_OK
     )
+
+
+class ProductImageView(APIView):
+  
+  def get(self, request, product_id=None, shop_product_id=None):
+    if product_id:
+      images = ProductImage.objects.filter(product__id=product_id)
+    elif shop_product_id:
+      images = ProductImage.objects.filter(shop_product__id=shop_product_id)
+    else:
+      return Response({'error': 'No product specified'}, status=status.HTTP_400_BAD_REQUEST)
+    serializer = ProductImageSerializer(images, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+    
+  def post(self, request, product_id=None, shop_product_id=None):
+    if not request.user.IsAuthenticated:
+      return Response({'error': 'Login required'}, status=status.HTTP_401_UNAUTHORIZED)
+    if product_id:
+      try:
+        product = Product.objects.get(id=product_id)
+      except Product.DoesNotExist:
+        return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+      if product.user != request.user and not request.user.is_staff:
+        return Response({'error': 'Not authorized'}, status=status.HTTP_401_UNAUTHORIZED)
+      existing_count = ProductImage.objects.filter(product=product).count()
+      images = request.FILES.getlist('images')
+      if existing_count + len(images) > 5:
+        return Response({'error': f"Too many images. You can only add {5 - existing_count} more."}, status=status.HTTP_400_BAD_REQUEST)
+      with transaction.atomic():
+        for image in images:
+          ProductImage.objects.create(product=product, image=image)
+    
+    elif shop_product_id:
+      try:
+        shop_product = Shop_product.objects.get(id=shop_product_id)
+      except Shop_product.DoesNotExist:
+        return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+      if shop_product.shop.owner != request.user and not request.user.is_staff:
+        return Response({'error': 'Not authorized'}, status=status.HTTP_401_UNAUTHORIZED)
+      existing_count = ProductImage.objects.filter(shop_product=shop_product).count()
+      images = request.FILES.getlist('images')
+      if existing_count + len(images) > 5:
+        return Response(
+          {'error': f"Too many images. You can only add {5 - existing_count} more"},
+          status=status.HTTP_400_BAD_REQUEST
+        )
+      with transaction.atomic():
+        for image in images:
+          ProductImage.objects.create(shop_product=shop_product, image=image)
       
+      
+class ProductImageDetailView(APIView):
+  
+  def delete(self, request, image_id):
+    try:
+      image = ProductImage.objects.get(id=image_id)
+    except ProductImage.DoesNotExist:
+      return Response({'error': 'Image not found'}, status=status.HTTP_404_NOT_FOUND)
+    if image.product:
+      if image.product.user != request.user and not request.user.is_staff:
+        return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+    elif image.shop_product:
+      if image.shop_product.shop.owner != request.user and not request.user.is_staff:
+        return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+    image.delete()
+    return Response({'message': 'Image deleted'}, status=status.HTTP_204_NO_CONTENT)

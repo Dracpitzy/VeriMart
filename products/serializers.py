@@ -1,11 +1,18 @@
 from rest_framework import serializers
-from .models import Category, Shop, Product, Shop_product, ShopReview, ProductReview
+from .models import Category, Shop, Product, Shop_product, ShopReview, ProductReview, ProductImage
 
 class CategorySerializer(serializers.ModelSerializer):
   
   class Meta:
     model = Category
     fields = '__all__'
+    
+    
+class ProductImageSerializer(serializers.ModelSerializer):
+  class Meta:
+    model = ProductImage
+    fields = ['id', 'product', 'shop_product', 'image', 'created_at']
+    read_only_fields = ['product', 'shop_product', 'created_at']
     
     
 class ShopSerializer(serializers.ModelSerializer):
@@ -24,6 +31,7 @@ class ShopSerializer(serializers.ModelSerializer):
 class Shop_productSerializer(serializers.ModelSerializer):
   category_name = serializers.CharField(source='category.name', read_only=True)
   shop_name = serializers.CharField(source='shop.name', read_only=True)
+  images = ProductImageSerializer(many=True, read_only=True)
   
   class Meta:
     model = Shop_product
@@ -38,6 +46,7 @@ class Shop_productSerializer(serializers.ModelSerializer):
   
 class ProductSerializer(serializers.ModelSerializer):
   category_name = serializers.CharField(source='category.name', read_only=True)
+  images = ProductImageSerializer(many=True, read_only=True)
   
   class Meta:
     model = Product
