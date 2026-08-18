@@ -1,10 +1,10 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
-from .models import Category, Shop, ProductImage, Shop_product, Product, ShopReview, ProductReview
-from .serializers import CategorySerializer, ProductImageSerializer, ShopSerializer, Shop_productSerializer, ProductSerializer, ShopReviewSerializer, ProductReviewSerializer
+from .models import Category, Shop, ProductImage, Shop_product, Product, ShopReview, ProductReview, ShopBankDetail, ProductAccountDetail
+from .serializers import CategorySerializer, ProductImageSerializer, ShopSerializer, Shop_productSerializer, ProductSerializer, ShopReviewSerializer, ProductReviewSerializer, ShopBankDetailSerializer, ProductAccountDetailSerializer, ShopBankListSerializer, ProductAccountListSerializer
 from orders.models import Order
 
 class CategoryView(APIView):
@@ -107,7 +107,7 @@ class ShopView(APIView):
       serializer.save(owner=request.user)
       return Response(
         serializer.data,
-        status=status.HTTP_200_OK
+        status=status.HTTP_201_CREATED
         )
     return Response(
       serializer.errors,
@@ -280,7 +280,7 @@ class ShopReviewView(APIView):
         {'error': 'You can not review your own shop'},
         status=status.HTTP_403_FORBIDDEN
         )
-    has_bought = Order.objects.filter(buyer=request.user, items__product__shop=shop).exists()
+    has_bought = Order.objects.filter(buyer=request.user, items__shop_product__shop=shop).exists()
     if not has_bought:
       return Response(
         {'error': 'You must purchase from this shop before reviewing'},
@@ -365,7 +365,7 @@ class Shop_productView(APIView):
         )
     serializer = Shop_productSerializer(data=request.data)
     if serializer.is_valid():
-      with transaction.atomic:
+      with transaction.atomic():
         shop_product = serializer.save(shop=shop)
         images = request.FILES.getlist('images')
         if len(images) > 5:
@@ -416,9 +416,9 @@ class Shop_productDetailView(APIView):
     if product.shop.owner != request.user:
       return Response(
         {'error': 'Only Shop owners can edit product'},
-        status=status.HTTP_401_UNAUTHORIZED
+        status=status.HTTP_403_FORBIDDEN
         )
-    serializer = Shop_productSerializer(product, data=request.data)
+    serializer = Shop_productSerializer(product, data=request.data, partial=True)
     if serializer.is_valid():
       serializer.save()
       return Response(serializer.data, status=status.HTTP_200_OK)
@@ -459,7 +459,7 @@ class Shop_productNotAvailableView(APIView):
     if product.shop.owner != request.user:
       return Response(
         {'error':'Not authorized'},
-        status=status.HTTP_401_UNAUTHORIZED
+        status=status.HTTP_403_FORBIDDEN
         )
     product.is_available = False
     product.save()
@@ -481,7 +481,7 @@ class Shop_productAvailableView(APIView):
     if product.shop.owner != request.user:
       return Response(
         {'error': 'Not authorized'},
-        status=status.HTTP_401_UNAUTHORIZED
+        status=status.HTTP_403_FORBIDDEN
         )
     product.is_available = True
     product.save()
@@ -503,7 +503,7 @@ class Shop_productViewUnavailableView(APIView):
     if shop.owner != request.user:
       return Response(
         {'error': 'Not your shop'},
-        status=status.HTTP_401_UNAUTHORIZED
+        status=status.HTTP_403_FORBIDDEN
         )
     unavailable_products = Shop_product.objects.filter(shop__id=shop_id, is_available=False)
     serializer = Shop_productSerializer(unavailable_products, many=True)
@@ -518,8 +518,14 @@ class ProductView(APIView):
     if not request.user.is_authenticated:
       return Response(
         {'error': 'Login to create product'},
-        status=status.HTTP_403_FORBIDDEN
+        status=status.HTTP_401_UNAUTHORIZED
         )
+    account_detail, created = ProductAccountDetail.objects.get_or_create(user=request.user)
+    if not account_detail.account_number:
+      return Response(
+        {'error': 'Please add your bank details before creating a product'},
+        status=status.HTTP_400_BAD_REQUEST
+      )
     serializer = ProductSerializer(data=request.data)
     if serializer.is_valid():
       with transaction.atomic():
@@ -572,7 +578,7 @@ class ProductDetailView(APIView):
         {'error': 'Only Product owner can perform this action'},
         status=status.HTTP_403_FORBIDDEN
         )
-    serializer = ProductSerializer(product, data=request.data)
+    serializer = ProductSerializer(product, data=request.data, partial=True)
     if serializer.is_valid():
       serializer.save()
       return Response(
@@ -588,7 +594,7 @@ class ProductDetailView(APIView):
     if not request.user.is_staff:
       return Response(
         {'error': 'You are not authorized to perform this action'},
-        status=status.HTTP_401_UNAUTHORIZED
+        status=status.HTTP_403_FORBIDDEN
         )
     try:
       product = Product.objects.get(id=product_id)
@@ -616,7 +622,7 @@ class ProductDeleteSchedule(APIView):
     if product.user != request.user:
       return Response(
         {'error': 'You are not authorized to perform this action'},
-        status=status.HTTP_401_UNAUTHORIZED
+        status=status.HTTP_403_FORBIDDEN
         )
     product.is_deleted = True
     product.save()
@@ -628,8 +634,8 @@ class ProductDeleteSchedule(APIView):
   def get(self, request, product_id):
     if not request.user.is_staff:
       return Response(
-        {'error': 'Unauthorized to perform this action'},
-        status=status.HTTP_401_UNAUTHORIZED
+        {'error': 'Not authorized to perform this action'},
+        status=status.HTTP_403_FORBIDDEN
         )
     try:
       product = Product.objects.get(id=product_id, is_deleted=True)
@@ -649,8 +655,8 @@ class ViewDeletedProducts(APIView):
   def get(self, request):
     if not request.user.is_staff:
       return Response(
-        {'error': 'Unauthorized to perform this action'},
-        status=status.HTTP_401_UNAUTHORIZED
+        {'error': 'Not authorized to perform this action'},
+        status=status.HTTP_403_FORBIDDEN
         )
     products = Product.objects.filter(is_deleted=True)
     serializer = ProductSerializer(products, many=True)
@@ -697,7 +703,7 @@ class ProductReviewView(APIView):
     
   def post(self, request, product_id=None, shop_product_id=None):
     if not request.user.is_authenticated:
-      return Response({'error': 'Login to leave reviews on products'}, status=status.HTTP_400_BAD_REQUEST)
+      return Response({'error': 'Login to leave reviews on products'}, status=status.HTTP_401_UNAUTHORIZED)
     product = None
     shop_product = None
     
@@ -734,7 +740,7 @@ class ProductReviewView(APIView):
         status=status.HTTP_200_OK
       )
     return Response(
-      serializers.errors,
+      serializer.errors,
       status=status.HTTP_400_BAD_REQUEST
     )
     
@@ -759,7 +765,7 @@ class ProductReviewDetailView(APIView):
       review = ProductReview.objects.get(id=review_id, is_deleted=False)
     except ProductReview.DoesNotExist:
       return Response(
-        {'Review not foud'},
+        {'error': 'Review not found'},
         status=status.HTTP_404_NOT_FOUND
       )
     if review.buyer != request.user:
@@ -788,7 +794,7 @@ class ProductImageView(APIView):
     return Response(serializer.data, status=status.HTTP_200_OK)
     
   def post(self, request, product_id=None, shop_product_id=None):
-    if not request.user.IsAuthenticated:
+    if not request.user.is_authenticated:
       return Response({'error': 'Login required'}, status=status.HTTP_401_UNAUTHORIZED)
     if product_id:
       try:
@@ -822,6 +828,10 @@ class ProductImageView(APIView):
       with transaction.atomic():
         for image in images:
           ProductImage.objects.create(shop_product=shop_product, image=image)
+    return Response(
+      {'message': 'Images uploaded'},
+      status=status.HTTP_201_CREATED
+    )
       
       
 class ProductImageDetailView(APIView):
@@ -839,3 +849,155 @@ class ProductImageDetailView(APIView):
         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
     image.delete()
     return Response({'message': 'Image deleted'}, status=status.HTTP_204_NO_CONTENT)
+    
+    
+class ShopBankDetailView(APIView):
+  
+  def get(self, request, shop_id):
+    try:
+      shop = Shop.objects.get(id=shop_id)
+    except Shop.DoesNotExist:
+      return Response(
+        {'errot': 'Shop not found'},
+        status=status.HTTP_404_NOT_FOUND
+      )
+    if shop.owner != request.user and not request.user.is_staff:
+      return Response(
+        {'error': 'Not authorized'},
+        status=status.HTTP_403_FORBIDDEN
+      )
+    try:
+      bank_detail = ShopBankDetail.objects.get(shop=shop)
+    except ShopBankDetail.DoesNotExist:
+      return Response(
+        {'error': 'Shop\'s bank detail not found'}, 
+        status=status.HTTP_404_NOT_FOUND
+      )
+    serializer = ShopBankDetailSerializer(bank_detail)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+    
+  def post(self, request, shop_id):
+    try:
+      shop = Shop.objects.get(id=shop_id)
+    except Shop.DoesNotExist:
+      return Response(
+        {'error': 'Shop not found'},
+        status=status.HTTP_404_NOT_FOUND
+      )
+    if shop.owner != request.user:
+      return Response(
+        {'error': 'Not your shop'},
+        status=status.HTTP_403_FORBIDDEN
+      )
+    if ShopBankDetail.objects.filter(shop=shop).exists():
+      return Response(
+        {'error': 'Bank detail already exist. Use the update key to make changes'},
+        status=status.HTTP_400_BAD_REQUEST
+      )
+    serializer = ShopBankDetailSerializer(data=request.data)
+    if serializer.is_valid():
+      serializer.save(shop=shop)
+      return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(
+      serializer.errors, status=status.HTTP_400_BAD_REQUEST
+    )
+    
+  def put(self, request, shop_id):
+    try:
+      shop = Shop.objects.get(id=shop_id)
+    except Shop.DoesNotExist:
+      return Response(
+        {'error': 'Shop not found'},
+        status=status.HTTP_404_NOT_FOUND
+      )
+    if shop.owner != request.user and not request.user.is_staff:
+      return Response(
+        {'error': 'Not your shop'},
+        status=status.HTTP_403_FORBIDDEN
+      )
+    try:
+      bank_detail = ShopBankDetail.objects.get(shop=shop)
+    except ShopBankDetail.DoesNotExist:
+      return Response(
+        {'error': 'Shop details not found'},
+        status=status.HTTP_404_NOT_FOUND
+      )
+    serializer = ShopBankDetailSerializer(bank_detail, data=request.data, partial=True)
+    if serializer.is_valid():
+      serializer.save()
+      return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(
+      serializer, status=status.HTTP_400_BAD_REQUEST)
+    
+  
+class ProductAccountDetailView(APIView):
+  
+  def get(self, request):
+    if not request.user.is_authenticated:
+      return Response(
+        {'error': 'Login required'},
+        status=status.HTTP_401_UNAUTHORIZED
+      )
+    try:
+      account = ProductAccountDetail.objects.get(user=request.user)
+    except ProductAccountDetail.DoesNotExist:
+      return Response(
+        {'error': 'No account details found'},
+        status=status.HTTP_404_NOT_FOUND
+      )
+    if account.user != request.user and not request.user.is_staff:
+      return Response({'error': 'Not authorised'}, status=status.HTTP_403_FORBIDDEN)
+    serializer = ProductAccountDetailSerializer(account)
+    return Response(
+      serializer.data, status=status.HTTP_200_OK
+    )
+    
+  def post(self, request):
+    if not request.user.is_authenticated:
+      return Response({'error': 'Login to create product account ShopBankDetail'}, status=status.HTTP_401_UNAUTHORIZED)
+    if ProductAccountDetail.objects.filter(user=request.user).exists():
+      return Response({'error': 'Account detail already exist, edit to change account details'}, status=status.HTTP_400_BAD_REQUEST)
+    serializer = ProductAccountDetailSerializer(data=request.data)
+    if serializer.is_valid():
+      serializer.save(user=request.user)
+      return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+  def put(self, request):
+    if not request.user.is_authenticated:
+      return Response(
+        {'error': 'Login to edit account detail'},
+        status=status.HTTP_401_UNAUTHORIZED
+      )
+    try:
+      account = ProductAccountDetail.objects.get(user=user)
+    except ProductAccountDetail.DoesNotExist:
+      return Response(
+        {'error': 'Account not found'},
+        status=status.HTTP_404_NOT_FOUND
+      )
+    if account.user != request.user and not request.user.is_staff:
+      return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+    serializer = ProductAccountDetailSerializer(account, data=request.data, partial=True)
+    if serializer.is_valid():
+      serializer.save()
+      return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+    
+    
+class ShopBankListView(APIView):
+  permission_classes = [IsAdminUser]
+  
+  def get(self, request):
+    shops_bank_details = ShopBankDetail.objects.all()
+    serializer = ShopBankListSerializer(shops_bank_details, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    
+class ProductAccountListView(APIView):
+  permission_classes = [IsAdminUser]
+  
+  def get(self, request):
+    product_account_details = ProductAccountDetail.objects.all()
+    serializer = ProductAccountListSerializer(product_account_details, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)

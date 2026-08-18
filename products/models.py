@@ -23,13 +23,29 @@ class Shop(models.Model):
     return self.name
     
     
+class ShopBankDetail(models.Model):
+  shop = models.OneToOneField(Shop, on_delete=models.CASCADE, related_name='bank_detail')
+  account_number = models.CharField(max_length=50)
+  bank_name = models.CharField(max_length=100)
+  account_name = models.CharField(max_length=100)
+  
+  def __str__(self):
+    return f"{self.shop.name} - {self.bank_name}"
+    
+    
 class Shop_product(models.Model):
+  CONDITION_CHOICES = [
+    ('new', 'New'),
+    ('used', 'Used'),
+  ]
+  
   shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='shop_products')
   category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='shop_products')
   name = models.CharField(max_length=200)
   description = models.TextField()
   stock = models.PositiveIntegerField(default=0)
   price = models.DecimalField(max_digits=10, decimal_places=2)
+  condition = models.CharField(max_length=10, choices=CONDITION_CHOICES, default='new')
   is_available = models.BooleanField(default=True)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
@@ -39,17 +55,31 @@ class Shop_product(models.Model):
   
 
 class Product(models.Model):
-  user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='product')
+  CONDITION_CHOICES = [
+    ('new', 'New'),
+    ('used', 'Used')
+  ]
+  
+  user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='products')
   category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='products')
   name = models.CharField(max_length=100)
   description = models.TextField()
   price = models.DecimalField(max_digits=10, decimal_places=2)
   stock = models.PositiveIntegerField(default=0)
+  condition = models.CharField(max_length=10, choices=CONDITION_CHOICES, default='new')
   is_deleted = models.BooleanField(default=False)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
   def __str__(self):
     return self.name
+    
+    
+class ProductAccountDetail(models.Model):
+  user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='product_account')
+  account_number = models.CharField(max_length=100, blank=True)
+  bank_name = models.CharField(max_length=100, blank=True)
+  account_name = models.CharField(max_length=100, blank=True)
+  
     
     
 class ProductImage(models.Model):

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Shop, Product, Shop_product, ShopReview, ProductReview, ProductImage
+from .models import Category, Shop, Product, Shop_product, ShopReview, ProductReview, ProductImage, ShopBankDetail, ProductAccountDetail
 
 class CategorySerializer(serializers.ModelSerializer):
   
@@ -24,7 +24,6 @@ class ShopSerializer(serializers.ModelSerializer):
       'created_at',
       'updated_at',
       'owner',
-      'shop'
       ]
     
     
@@ -42,6 +41,11 @@ class Shop_productSerializer(serializers.ModelSerializer):
       'shop',
       'is_available'
       ]
+      
+  def validate_condition(self, value):
+    if value not in ('new', 'used'):
+      raise serializers.ValidationError("Condition must be 'new' or 'used' ")
+    return value
     
   
 class ProductSerializer(serializers.ModelSerializer):
@@ -58,6 +62,11 @@ class ProductSerializer(serializers.ModelSerializer):
       'is_deleted'
       ]
       
+  def validate_condition(self, value):
+    if value not in ('new', 'used'):
+      raise serializers.ValidationError("Condition must be 'new' or 'used' ")
+    return value
+      
       
 class ShopReviewSerializer(serializers.ModelSerializer):
   buyer_name = serializers.CharField(source='buyer.username', read_only=True)
@@ -67,7 +76,8 @@ class ShopReviewSerializer(serializers.ModelSerializer):
     fields = '__all__'
     read_only_fields = [
       'buyer',
-      'created_at'
+      'created_at',
+      'is_deleted'
     ]
   def validate_rating(self, value):
     if value < 1 or value > 5:
@@ -83,6 +93,9 @@ class ProductReviewSerializer(serializers.ModelSerializer):
     fields = [
       'id', 'product', 'shop_product', 'buyer', 'buyer_name', 'rating', 'comment', 'is_deleted', 'created_at'
     ]
+    read_only_fields = [
+      'buyer', 'created_at', 'is_deleted'
+    ]
     
   def validate_rating(self, value):
     if value < 1 or value > 5:
@@ -96,3 +109,37 @@ class ProductReviewSerializer(serializers.ModelSerializer):
       raise serializers.ValidationError("A review cannot belong to both a product and a shop product.")
     return data
     
+    
+class ShopBankDetailSerializer(serializers.ModelSerializer):
+  
+  class Meta:
+    model = ShopBankDetail
+    fields = '__all__'
+    read_only_fields = ['shop']
+    
+    
+class ProductAccountDetailSerializer(serializers.ModelSerializer):
+  
+  class Meta:
+    model = ProductAccountDetail
+    fields = '__all__'
+    read_only_fields = ['user']
+    
+    
+class ShopBankListSerializer(serializers.ModelSerializer):
+  
+  shop_name = serializers.CharField(source='shop.name', read_only=True)
+  
+  class Meta:
+    model = ShopBankDetail
+    fields = ['id', 'bank_name', 'account_number', 'account_name', 'shop_name']
+    read_only_fields = ['id', 'bank_name', 'account_number', 'account_name', 'shop_name']
+    
+    
+class ProductAccountListSerializer(serializers.ModelSerializer):
+  user_name = serializers.CharField(source='user.username', read_only=True)
+  
+  class Meta:
+    model = ProductAccountDetail
+    fields = ['id', 'account_number', 'account_name', 'bank_name', 'user_name']
+    read_only_fields = ['id', 'account_number', 'account_name', 'bank_name', 'user_name']
