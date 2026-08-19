@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
+from rest_framework.authentication import TokenAuthentication
 from .models import customer_profile
 from .serializers import UserSerializer, Customer_profileSerializer, ChangePasswordSerializer
 
@@ -35,7 +36,7 @@ class LoginView(APIView):
       
       
 class Customer_profileView(APIView):
-  permission_classess = [IsAuthenticated]
+  permission_classes = [IsAuthenticated]
   
   def post(self, request):
     serializer = Customer_profileSerializer(data=request.data)
@@ -62,9 +63,12 @@ class Customer_profileView(APIView):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
   def delete(self, request):
-    profile = customer_profile(user=request.user)
+    try:
+      profile = customer_profile.objects.get(user=request.user)
+    except customer_profile.DoesNotExist:
+      return Response({'error': 'Profile not found'}, status=status.HTTP_400_BAD_REQUEST)
     profile.delete()
-    return Response({'message': 'Profile deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+    return Response({'message': 'Profile deleted successfully'}, status=status.HTTP_200_OK)
     
     
 class ChangePasswordView(APIView):
