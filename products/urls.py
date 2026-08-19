@@ -25,7 +25,7 @@ urlpatterns = [
   path('products/<int:product_id>/reviews/', ProductReviewView.as_view()),
   path('shop-products/<int:shop_product_id>/reviews/', ProductReviewView.as_view()),
   path('reviews/<int:review_id>/', ProductReviewDetailView.as_view()),
-  path('delete-product-image/<int:image_id>/', ProductImageDetailView.as_view())
+  path('delete-product-image/<int:image_id>/', ProductImageDetailView.as_view()),
   path('shops/<int:shop_id>/bank-detail/', ShopBankDetailView.as_view()),
   path('shops/bank-details/', ShopBankListView.as_view()),
   path('account-detail/', ProductAccountDetailView.as_view()),
