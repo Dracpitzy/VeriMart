@@ -3,7 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
-from rest_framework.response import response
+from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 
@@ -38,7 +38,7 @@ class PaymentDetailView(APIView):
   
   def get(self, request, pk):
     
-    payment = get_object_or_404(Payment, pk:pk, order__user=request.user)
+    payment = get_object_or_404(Payment, pk=pk, order__user=request.user)
     
     serializer = PaymentSerializer(payment)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -83,12 +83,12 @@ class AdminSellerBalancePayoutView(APIView):
     if amount > balance.available:
       return Response({'error': 'amount exceeds available balance'}, status=status.HTTP_400_BAD_REQUEST)
     balance.available -= amount
-    balamce.withdrawn += amount
-    balance.save(update_fielda=['available', 'withdrawn', 'updated_at',])
+    balance.withdrawn += amount
+    balance.save(update_fields=['available', 'withdrawn', 'updated_at',])
     return Response(SellerBalanceSerializer(balance).data, status=status.HTTP_200_OK)
     
     
-class PaymentWebHookView(APIView):
+class PaymentWebhookView(APIView):
   permission_classes = [AllowAny]
   
   def post(self, request):
@@ -120,9 +120,9 @@ class PaymentWebHookView(APIView):
       order.status = 'paid'
       order.save(update_fields=['status', 'updated_at'])
       
-      for items in order.items.all():
+      for item in order.items.all():
         seller = item.product.user if item.product else item.shop_product.shop.owner
         balance, _ = SellerBalance.objects.get_or_create(seller=seller)
         balance.pending += item.subtotal
-        balance.save(update_fields=['pendind', 'updated_at'])
+        balance.save(update_fields=['pending', 'updated_at'])
     return Response(status=status.HTTP_200_OK)
