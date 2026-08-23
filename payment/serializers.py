@@ -34,7 +34,7 @@ class PaymentSerializer(serializers.ModelSerializer):
     read_only_fields = fields
     
     
-class SellerBalanceSerializer(serializer.ModelSerializer):
+class SellerBalanceSerializer(serializers.ModelSerializer):
   
   shop_name = serializers.SerializerMethodField()
   seller_username = serializers.CharField(source='seller.username', read_only=True)
