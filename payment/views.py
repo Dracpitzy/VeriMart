@@ -32,6 +32,7 @@ class InitializePaymentView(APIView):
       },
       status=status.HTTP_201_CREATED,
     )
+ 
     
 class PaymentDetailView(APIView):
   permission_classes = [IsAuthenticated]
@@ -95,6 +96,9 @@ class PaymentWebhookView(APIView):
     if not services.verify_webhook_signature(request):
       return Response(status=status.HTTP_400_BAD_REQUEST)
       
+    if request.data.get('event') != 'charge.success':
+      return Response(status=status.HTTP_200_OK)
+      
     reference = request.data.get('data', {}).get('reference')
     payment = Payment.objects.filter(transaction_reference=reference).first()
     if payment is None:
@@ -105,6 +109,13 @@ class PaymentWebhookView(APIView):
     
     verified_data = services.verify_transaction(reference)
     if not verified_data.get('success'):
+      payment.status = 'failed'
+      payment.gateway_response = verified_data
+      payment.save(update_fields=['status', 'gateway_response', 'updated_at'])
+      return Response(status=status.HTTP_200_OK)
+    
+    expected_amount = int(services.calculate_amount_with_fee(payment.amount) * 100)
+    if verified_data.get('amount') != expected_amount:
       payment.status = 'failed'
       payment.gateway_response = verified_data
       payment.save(update_fields=['status', 'gateway_response', 'updated_at'])
@@ -122,7 +133,9 @@ class PaymentWebhookView(APIView):
       
       for item in order.items.all():
         seller = item.product.user if item.product else item.shop_product.shop.owner
+        commission = item.subtotal * services.PLATFORM_COMMISSION_RATE
+        seller_amount = item.subtotal - commission
         balance, _ = SellerBalance.objects.get_or_create(seller=seller)
-        balance.pending += item.subtotal
+        balance.pending += seller_amount
         balance.save(update_fields=['pending', 'updated_at'])
     return Response(status=status.HTTP_200_OK)
