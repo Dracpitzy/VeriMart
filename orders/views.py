@@ -11,7 +11,7 @@ from products.models import Product, Shop_product
 
 
 class OrderListCreateView(APIView):
-  permission_classess = [IsAuthenticated]
+  permission_classes = [IsAuthenticated]
   
   def get(self, request):
     orders = Order.objects.filter(user=request.user)
@@ -27,7 +27,7 @@ class OrderListCreateView(APIView):
       return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     cart = get_object_or_404(Cart, user=request.user)
     cart_items = CartItem.objects.filter(cart=cart)
-    if not cart_items.exist():
+    if not cart_items.exists():
       return Response(
         {'error': 'Your cart is empty'},
         status=status.HTTP_400_BAD_REQUEST
@@ -48,12 +48,12 @@ class OrderListCreateView(APIView):
                 {'error': 'Cart item must have either a product or a shop product'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        OrdetItem.objects.create(
+        OrderItem.objects.create(
           order=order,
           product=item.product if item.product else None,
           shop_product=item.shop_product if item.shop_product else None,
           quantity=item.quantity,
-          price=item.product.price if price.product else item.shop_product.price
+          price=item.product.price if item.product else item.shop_product.price
         )
       cart_items.delete()
     return Response(
@@ -63,7 +63,7 @@ class OrderListCreateView(APIView):
     
     
 class OrderDetailView(APIView):
-  permission_classess = [IsAuthenticated]
+  permission_classes = [IsAuthenticated]
   
   def get(self, request, pk):
     order = get_object_or_404(Order, pk=pk, user=request.user)
@@ -89,7 +89,7 @@ class OrderDetailView(APIView):
  
     
 class AdminOrderListView(APIView):
-  permission_classess = [IsAdminUser]
+  permission_classes = [IsAdminUser]
   
   def get(self, request):
     orders = Order.objects.all()
@@ -101,7 +101,7 @@ class AdminOrderListView(APIView):
     
     
 class AdminOrderListDetailView(APIView):
-  permission_classess = [IsAdminUser]
+  permission_classes = [IsAdminUser]
   
   def get(self, request, pk):
     order = get_object_or_404(Order, pk=pk)
@@ -113,7 +113,7 @@ class AdminOrderListDetailView(APIView):
     
     
 class AdminUpdateOrderView(APIView):
-  permission_classess = [IsAdminUser]
+  permission_classes = [IsAdminUser]
   
   def patch(self, request, pk):
     order = get_object_or_404(Order, pk=pk)
@@ -130,7 +130,7 @@ class AdminUpdateOrderView(APIView):
     
   
 class AddOrderItemView(APIView):
-  permission_classess = [IsAuthenticated]
+  permission_classes = [IsAuthenticated]
   
   def post(self, request, pk):
     order = get_object_or_404(Order, pk=pk, user=request.user)
@@ -170,8 +170,8 @@ class AddOrderItemView(APIView):
         )
         
     if shop_product_id:
-      shop_product = get_object_or_404(Shop_product, pk=shop_product_id).first()
-      existing_item = OrderItem.objects.filter(order=order, shop_product=shop_product)
+      shop_product = get_object_or_404(Shop_product, pk=shop_product_id)
+      existing_item = OrderItem.objects.filter(order=order, shop_product=shop_product).first()
       if existing_item:
         existing_item.quantity += quantity
         existing_item.save()
