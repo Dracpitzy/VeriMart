@@ -130,3 +130,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 
 PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
+EMAIL_API_KEY = config("RESEND_API_KEY")
+EMAIL_API_URL = "https://api.resend.com/emails"
+DEFAULT_FROM_EMAIL = "VeriMart <onboarding@resend.dev>"

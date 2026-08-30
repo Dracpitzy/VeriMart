@@ -11,6 +11,7 @@ from orders.models import Order
 from .models import Payment, SellerBalance
 from .serializers import InitializePaymentSerializer, PaymentSerializer, SellerBalanceSerializer
 from . import services
+from . import emails
 
 
 class InitializePaymentView(APIView):
@@ -138,4 +139,7 @@ class PaymentWebhookView(APIView):
         balance, _ = SellerBalance.objects.get_or_create(seller=seller)
         balance.pending += seller_amount
         balance.save(update_fields=['pending', 'updated_at'])
+        
+    emails.send_order_confirmation_email(order)
+    emails.send_seller_sale_notifications(order)
     return Response(status=status.HTTP_200_OK)
