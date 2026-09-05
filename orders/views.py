@@ -32,22 +32,23 @@ class OrderListCreateView(APIView):
         {'error': 'Your cart is empty'},
         status=status.HTTP_400_BAD_REQUEST
         )
+        
+    for item in cart_items:
+      if item.product and item.shop_product:
+        return Response(
+          {'error': 'Cart item cannot have both a product and a shop product'}, status=status.HTTP_400_BAD_REQUEST
+        )
+      if not item.product and not item.shop_product:
+        return Response(
+          {'error': 'Cart item must have either a product or a shop product'}, status=status.HTTP_400_BAD_REQUEST
+        )   
+        
     with transaction.atomic():
       order = Order.objects.create(
         user=request.user,
         shipping_address=serializer.validated_data['shipping_address']
       )
       for item in cart_items:
-        if item.product and item.shop_product:
-            return Response(
-                {'error': 'Cart item cannot have both a product and a shop product'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if not item.product and not item.shop_product:
-            return Response(
-                {'error': 'Cart item must have either a product or a shop product'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
         OrderItem.objects.create(
           order=order,
           product=item.product if item.product else None,
@@ -142,7 +143,12 @@ class AddOrderItemView(APIView):
       )
     product_id = request.data.get('product_id')
     shop_product_id = request.data.get('shop_product_id')
-    quantity = request.data.get('quantity', 1)
+    try:
+      quantity = int(request.data.get('quantity', 1))
+    except (TypeError, ValueError):
+      return Response({'error': 'Quantity must be a valid integer'}, status=status.HTTP_400_BAD_REQUEST)
+    if quantity < 1:
+      return Response({'error': 'Quantity must be at least 1.'}, status=status.HTTP_400_BAD_REQUEST)
     
     if not product_id and not shop_product_id:
       return Response(

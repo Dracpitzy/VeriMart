@@ -21,7 +21,7 @@ def calculate_amount_with_fee(order_amount):
   
   if fee_charged > LOCAL_CARD_FEE_CAP:
     amount_with_fee = order_amount + LOCAL_CARD_FEE_CAP
-    return amount_with_fee.quantize(Decimal('0.01'))
+  return amount_with_fee.quantize(Decimal('0.01'))
 
 
 
