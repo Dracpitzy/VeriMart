@@ -8,7 +8,7 @@ class InitializePaymentSerializer(serializers.Serializer):
   def validate(self, attrs):
     order = self.context['order']
     if order.payments.filter(status='success').exists():
-      raise Serializers.ValidationError('This order has been paid for.')
+      raise serializers.ValidationError('This order has been paid for.')
     return attrs
   
   def create(self, validated_data):
@@ -19,7 +19,7 @@ class InitializePaymentSerializer(serializers.Serializer):
       
     payment = Payment.objects.create(
       order=order,
-      transaction_reference=uuid.uuid4.hex(),
+      transaction_reference=uuid.uuid4().hex,
       amount=order.total_price,
     )
     return payment

@@ -56,7 +56,7 @@ def send_order_confirmation_email(order):
     "order_url": "#",
   }
   
-  html = render_to_string("payment/email/order_confirmation.html", context)
+  html = render_to_string("payment/emails/order_confirmation.html", context)
   
   return send_email(
     to=order.user.email,

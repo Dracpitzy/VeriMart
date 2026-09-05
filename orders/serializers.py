@@ -19,9 +19,11 @@ class OrderItemSerializer(serializers.ModelSerializer):
       
   def get_product_image(self, obj):
     if obj.product:
-      return obj.product.image.url if obj.product.image else None
+      image = obj.product.images.first()
+      return image.image.url if image else None
     if obj.shop_product:
-      return obj.shop_product.image.url if obj.shop_product.image else None
+      image = obj.shop_product.images.first()
+      return image.image.url if image else None
     return None
     
 

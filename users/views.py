@@ -31,7 +31,7 @@ class LoginView(APIView):
       token, _ = Token.objects.get_or_create(user=user)
       return Response({'token': token.key}, status=status.HTTP_200_OK
       )
-    return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORISED
+    return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED
       )
       
       
@@ -39,6 +39,8 @@ class Customer_profileView(APIView):
   permission_classes = [IsAuthenticated]
   
   def post(self, request):
+    if customer_profile.objects.filter(user=request.user).exists():
+      return Response({'error': 'Profile already exists.'}, status=status.HTTP_400_BAD_REQUEST)
     serializer = Customer_profileSerializer(data=request.data)
     if serializer.is_valid():
       serializer.save(user=request.user)
@@ -72,7 +74,7 @@ class Customer_profileView(APIView):
     
     
 class ChangePasswordView(APIView):
-  permission_classess = [IsAuthenticated]
+  permission_classes = [IsAuthenticated]
   
   def put(self, request):
     user = request.user

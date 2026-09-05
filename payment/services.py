@@ -55,7 +55,7 @@ def verify_transaction(reference):
   }
   
   response = requests.get(url, headers=headers, timeout=10)
-  response.raise_for_status
+  response.raise_for_status()
   data = response.json()
   
   transaction_data = data.get('data', {})

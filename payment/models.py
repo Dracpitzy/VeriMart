@@ -15,7 +15,7 @@ class Payment(models.Model):
   transaction_reference = models.CharField(max_length=100, unique=True)
   amount = models.DecimalField(max_digits=10, decimal_places=2)
   status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-  geteaway_response = models.JSONField(null=True, blank=True)
+  gateway_response = models.JSONField(null=True, blank=True)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
   verified_at = models.DateTimeField(null=True, blank=True)

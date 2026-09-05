@@ -3,6 +3,7 @@ from .models import Cart, CartItem
 
 class CartItemSerializer(serializers.ModelSerializer):
   product_name = serializers.SerializerMethodField()
+  product_image = serializers.SerializerMethodField()
   subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
   
   class Meta:
@@ -17,6 +18,15 @@ class CartItemSerializer(serializers.ModelSerializer):
       return obj.product.name
     if obj.shop_product:
       return obj.shop_product.name
+      
+  def get_product_image(self, obj):
+    if obj.product:
+      image = obj.product.images.first()
+      return image.image.url if image else None
+    if obj.shop_product:
+      image = obj.shop_product.images.first()
+      return image.image.url if image else None
+    return None
 
 
 class CartSerializer(serializers.ModelSerializer):

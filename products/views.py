@@ -365,11 +365,11 @@ class Shop_productView(APIView):
         )
     serializer = Shop_productSerializer(data=request.data)
     if serializer.is_valid():
+      images = request.FILES.getlist('images')
+      if len(images) > 5:
+        return Response({'error': 'Maximum of 5 images allowed'}, status=status.HTTP_400_BAD_REQUEST)
       with transaction.atomic():
         shop_product = serializer.save(shop=shop)
-        images = request.FILES.getlist('images')
-        if len(images) > 5:
-          return Response({'error': 'Maximum of 5 images allowed'}, status=status.HTTP_400_BAD_REQUEST)
         for image in images:
           ProductImage.objects.create(shop_product=shop_product, image=image)
       return Response(
@@ -438,7 +438,7 @@ class Shop_productDetailView(APIView):
     if product.shop.owner != request.user and not request.user.is_staff:
       return Response(
         {'error':'Not authorized'},
-        status=status.HTTP_401_UNAUTHORIZED
+        status=status.HTTP_403_FORBIDDEN
         )
     product.delete()
     return Response(
@@ -527,12 +527,14 @@ class ProductView(APIView):
         status=status.HTTP_400_BAD_REQUEST
       )
     serializer = ProductSerializer(data=request.data)
+    
+    images = request.FILES.getlist('images')
+    if len(images) > 5:
+      return Response({'error': 'Maximum of 5 images per product'}, status=status.HTTP_400_BAD_REQUEST)
+        
     if serializer.is_valid():
       with transaction.atomic():
         product = serializer.save(user=request.user)
-        images = request.FILES.getlist('images')
-        if len(images) > 5:
-          return Response({'error': 'Maximum of 5 images per product'}, status=status.HTTP_400_BAD_REQUEST)
         for image in images:
           ProductImage.objects.create(product=product, image=image)
       return Response(
@@ -726,7 +728,7 @@ class ProductReviewView(APIView):
           {'error': 'Product not found'},
           status=status.HTTP_404_NOT_FOUND
         )
-      has_bought = Order.objects.filter(buyer=request.data, items__shop_product=shop_product).exists()
+      has_bought = Order.objects.filter(buyer=request.user, items__shop_product=shop_product).exists()
       if not has_bought:
         return Response({'error': 'You must purchase this product before reviewing'}, status=status.HTTP_400_BAD_REQUEST)
       review_count = ProductReview.objects.filter(shop_product=shop_product, buyer=request.user).count()
@@ -737,7 +739,7 @@ class ProductReviewView(APIView):
       serializer.save(buyer=request.user, product=product, shop_product=shop_product)
       return Response(
         serializer.data,
-        status=status.HTTP_200_OK
+        status=status.HTTP_201_CREATED
       )
     return Response(
       serializer.errors,
@@ -802,7 +804,7 @@ class ProductImageView(APIView):
       except Product.DoesNotExist:
         return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
       if product.user != request.user and not request.user.is_staff:
-        return Response({'error': 'Not authorized'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
       existing_count = ProductImage.objects.filter(product=product).count()
       images = request.FILES.getlist('images')
       if existing_count + len(images) > 5:
@@ -817,7 +819,7 @@ class ProductImageView(APIView):
       except Shop_product.DoesNotExist:
         return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
       if shop_product.shop.owner != request.user and not request.user.is_staff:
-        return Response({'error': 'Not authorized'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
       existing_count = ProductImage.objects.filter(shop_product=shop_product).count()
       images = request.FILES.getlist('images')
       if existing_count + len(images) > 5:
@@ -858,7 +860,7 @@ class ShopBankDetailView(APIView):
       shop = Shop.objects.get(id=shop_id)
     except Shop.DoesNotExist:
       return Response(
-        {'errot': 'Shop not found'},
+        {'error': 'Shop not found'},
         status=status.HTTP_404_NOT_FOUND
       )
     if shop.owner != request.user and not request.user.is_staff:
@@ -927,7 +929,7 @@ class ShopBankDetailView(APIView):
       serializer.save()
       return Response(serializer.data, status=status.HTTP_200_OK)
     return Response(
-      serializer, status=status.HTTP_400_BAD_REQUEST)
+      serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
   
 class ProductAccountDetailView(APIView):
@@ -970,7 +972,7 @@ class ProductAccountDetailView(APIView):
         status=status.HTTP_401_UNAUTHORIZED
       )
     try:
-      account = ProductAccountDetail.objects.get(user=user)
+      account = ProductAccountDetail.objects.get(user=request.user)
     except ProductAccountDetail.DoesNotExist:
       return Response(
         {'error': 'Account not found'},
