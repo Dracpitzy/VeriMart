@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Order, OrderItem
+from payment.services import calculate_amount_with_fee
 
 class OrderItemSerializer(serializers.ModelSerializer):
   
@@ -30,13 +31,19 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
   items = OrderItemSerializer(many=True, read_only=True)
   total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+  transaction_fee = serializers.SerializerMethodField()
+  amount_payable = serializers.SerializerMethodField()
   status = serializers.CharField(source='get_status_display', read_only=True)
    
   class Meta:
     model = Order
     fields = [
-      'id', 'shipping_address', 'total_price', 'items', 'created_at', 'updated_at', 'status',
+      'id', 'shipping_address', 'total_price', 'items', 'transaction_fee','amount_payable', 'created_at', 'updated_at', 'status',
     ]
+  def get_amount_payable(self, obj):
+    return calculate_amount_with_fee(obj.total_price)
+  def get_transaction_fee(self, obj):
+    return calculate_amount_with_fee(obj.total_price) - obj.total_price
 
 class CheckoutSerializer(serializers.Serializer):
   shipping_address = serializers.CharField()
