@@ -1,6 +1,6 @@
 import uuid
 from rest_framework import serializers
-from .models import Payment, SellerBalance
+from .models import Payment, SellerBalance, Payout
 
 
 class InitializePaymentSerializer(serializers.Serializer):
@@ -47,5 +47,20 @@ class SellerBalanceSerializer(serializers.ModelSerializer):
     model = SellerBalance
     fields = [
       'id', 'seller_username', 'pending', 'available', 'shop_name', 'withdrawn', 'total_earned', 'updated_at',
+    ]
+    read_only_fields = fields
+    
+    
+class PayoutSerializer(serializers.ModelSerializer):
+  
+  seller_username = serializers.CharField(source='seller_balance.seller.username', read_only=True)
+  processed_by_username = serializers.CharField(source='processed_by.username', read_only=True, default=None)
+  
+  class Meta:
+    model = Payout
+    fields = [
+      'id', 'seller_username', 'amount',
+      'processed_by_username', 'note',
+      'created_at'
     ]
     read_only_fields = fields

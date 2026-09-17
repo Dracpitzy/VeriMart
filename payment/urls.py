@@ -5,6 +5,8 @@ from .views import (
     MySellerBalanceView,
     AdminSellerBalanceListView,
     AdminSellerBalancePayoutView,
+    SellerPayoutHistoryView,
+    AdminPayoutListView,
     PaymentWebhookView,
 )
 
@@ -13,7 +15,9 @@ urlpatterns = [
   path('initialize/<int:order_id>/', InitializePaymentView.as_view()),
   path('payment-detail/<int:pk>/', PaymentDetailView.as_view()),
   path('my-balance/', MySellerBalanceView.as_view()),
+  path('my-payouts/', SellerPayoutHistoryView.as_view()),
   path('admin-balances/', AdminSellerBalanceListView.as_view()),
   path('admin-payout/<int:pk>/', AdminSellerBalancePayoutView.as_view()),
+  path('admin-payouts/', AdminPayoutListView.as_view()),
   path('webhook/', PaymentWebhookView.as_view()),
 ]

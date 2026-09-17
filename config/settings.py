@@ -122,7 +122,11 @@ AUTH_USER_MODEL= 'users.User'
 REST_FRAMEWORK = {
   'DEFAULT_AUTHENTICATION_CLASSES': [
     'rest_framework.authentication.TokenAuthentication',
-    ]
+    ],
+    
+  'DEFAULT_THROTTLE_RATES': {
+    'payment_initialize': '10/hour',
+  }
 }
 
 MEDIA_URL = '/media/'

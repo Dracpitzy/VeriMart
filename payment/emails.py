@@ -2,6 +2,7 @@ import requests
 from django.conf import settings
 from django.template.loader import render_to_string
 from collections import defaultdict
+from .services import PLATFORM_COMMISSION_RATE
 from decimal import Decimal
 
 def send_email(to: str, subject: str, html: str):
@@ -79,7 +80,7 @@ def send_seller_sale_notifications(order):
       continue
     
     gross_amoumt = sum(item.subtotal for item in items)
-    commision_amount = gross_amoumt * Decimal("0.07")
+    commision_amount = gross_amoumt * PLATFORM_COMMISSION_RATE
     net_earnings = gross_amoumt - commision_amount
     
     items_context = [

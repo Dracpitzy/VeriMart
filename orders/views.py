@@ -93,7 +93,7 @@ class AdminOrderListView(APIView):
   permission_classes = [IsAdminUser]
   
   def get(self, request):
-    orders = Order.objects.all()
+    orders = Order.objects.prefetch_related('items').all()
     serializer = OrderSerializer(orders, many=True)
     return Response(
       serializer.data,

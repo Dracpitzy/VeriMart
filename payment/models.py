@@ -52,3 +52,19 @@ class SellerBalance(models.Model):
   @property
   def total_earned(self):
     return self.pending + self.available + self.withdrawn
+
+
+class Payout(models.Model):
+  seller_balance = models.ForeignKey(SellerBalance, on_delete=models.CASCADE, related_name='payouts')
+  amount = models.DecimalField(max_digits=10, decimal_places=2)
+  processed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='processed_payouts')
+  note = models.TextField(blank=True)
+  created_at = models.DateTimeField(auto_now_add=True)
+  
+  class Meta:
+    constraints = [
+      models.CheckConstraint(condition=Q(amount__gt=0), name='payout_amount_positives'),
+    ]
+    
+  def __str__(self):
+    return f"Payout of {self.amount} to {self.seller_balance.seller} on {self.created_at:%Y-%m-%d}"
