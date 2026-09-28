@@ -137,3 +137,29 @@ PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
 EMAIL_API_KEY = config("RESEND_API_KEY")
 EMAIL_API_URL = "https://api.resend.com/emails"
 DEFAULT_FROM_EMAIL = "VeriMart <onboarding@resend.dev>"
+
+LOGGING = {
+  'version': 1,
+  'disable_existing_loggers': False,
+  'formatters': {
+    'verbose': {
+      'format': '{asctime} {levelname} {name} - {message}',
+      'style': '{',
+    },
+  },
+  'handlers': {
+    'console': {
+      'class': 'logging.StreamHandler',
+      'formatter': 'verbose',
+    },
+    'file': {
+      'class': 'logging.FileHandler',
+      'filename': BASE_DIR / 'logs' / 'verimart.log',
+      'formatter': 'verbose',
+    },
+  },
+  'root': {
+    'handlers': ['console', 'file'],
+    'level': 'INFO',
+  },
+}

@@ -8,6 +8,8 @@ from .models import Order, OrderItem
 from .serializers import OrderSerializer, OrderItemSerializer, CheckoutSerializer
 from cart.models import Cart, CartItem
 from products.models import Product, Shop_product
+from payment.services import release_pending_to_available
+from payment.models import SellerBalance
 
 
 class OrderListCreateView(APIView):
@@ -81,8 +83,17 @@ class OrderDetailView(APIView):
         {'error': 'You can only confirm delivery after order has been shipped'},
         status=status.HTTP_400_BAD_REQUEST
       )
-    order.status = 'delivered'
-    order.save()
+      
+    try:
+      with transaction.atomic():
+        order.status = 'delivered'
+        order.save(update_field =['status', 'updated_at',])
+        release_pending_to_available(order)
+    except SellerBalance.DoesNotExist:
+      return Response(
+        {'error': 'Could not release funds - a seller balance record is missing. Please contact support.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+      )
+      
     return Response(
       OrderSerializer(order).data,
       status=status.HTTP_200_OK

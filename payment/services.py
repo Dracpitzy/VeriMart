@@ -1,8 +1,10 @@
 import hashlib
 import hmac
 from decimal import Decimal
+from django.db import transaction
 from django.conf import settings
 import requests
+from .models import SellerBalance
 
 PAYSTACK_BASE_URL = 'https://api.paystack.co'
 
@@ -80,3 +82,17 @@ def verify_webhook_signature(request):
   ).hexdigest()
   
   return hmac.compare_digest(computed_signature, signature)
+  
+  
+def release_pending_to_available(order):
+  with tansaction.atomic():
+    for items in order.items.all():
+      seller = item.product.user if item.product else item.shop_product.shop.owner
+      commission = item.subtotal * PLATFORM_COMMISSION_RATE
+      seller_amount = item.subtotal - commission
+      
+      balance = SellerBalance.objects.select_for_update().get(seller=seller)
+      balance.pending -= seller_amount
+      balance.available += seller_amount
+      balance.save(update_fields=['pending', 'available', 'updated_at'])
+
