@@ -52,13 +52,19 @@ class Customer_profileView(APIView):
     )
     
   def get(self, request):
-    profile = customer_profile.objects.get(user=request.user)
+    try:
+      profile = customer_profile.objects.get(user=request.user)
+    except customer_profile.DoesNotExist:
+      return Response({'error': 'Profile not found.'}, status=status.HTTP_404_NOT_FOUND)
     serializer = Customer_profileSerializer(profile)
     return Response(serializer.data)
     
-  def put(self, request):
-    profile = customer_profile(user=request.user)
-    serializer = Customer_profileSerializer(profile, data=request.data)
+  def patch(self, request):
+    try:
+      profile = customer_profile.objects.get(user=request.user)
+    except customer_profile.DoesNotExist:
+      return Response({'error': 'Profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+    serializer = Customer_profileSerializer(profile, data=request.data, partial=True)
     if serializer.is_valid():
       serializer.save()
       return Response(serializer.data)
@@ -68,7 +74,7 @@ class Customer_profileView(APIView):
     try:
       profile = customer_profile.objects.get(user=request.user)
     except customer_profile.DoesNotExist:
-      return Response({'error': 'Profile not found'}, status=status.HTTP_400_BAD_REQUEST)
+      return Response({'error': 'Profile not found'}, status=status.HTTP_404_NOT_FOUND)
     profile.delete()
     return Response({'message': 'Profile deleted successfully'}, status=status.HTTP_200_OK)
     

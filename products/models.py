@@ -16,6 +16,7 @@ class Shop(models.Model):
   description = models.TextField()
   logo = models.ImageField(upload_to='shops/logos/')
   is_active = models.BooleanField(default=True)
+  is_verified = models.BooleanField(default=False)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
   
@@ -112,6 +113,8 @@ class ProductReview(models.Model):
   product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True, related_name='reviews')
   shop_product = models.ForeignKey(Shop_product, on_delete=models.CASCADE, null=True, blank=True, related_name='reviews')
   buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+  image_1 = models.ImageField(upload_to='review_images/', null=True, blank=True)
+  image_2 = models.ImageField(upload_to='review_images/', null=True, blank=True)
   rating = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
   comment = models.TextField(blank=True)
   is_deleted = models.BooleanField(default=False)
