@@ -10,6 +10,7 @@ from cart.models import Cart, CartItem
 from products.models import Product, Shop_product
 from payment.services import release_pending_to_available
 from payment.models import SellerBalance
+from products.services import update_verification_status
 
 
 class OrderListCreateView(APIView):
@@ -89,6 +90,10 @@ class OrderDetailView(APIView):
         order.status = 'delivered'
         order.save(update_field =['status', 'updated_at',])
         release_pending_to_available(order)
+        
+        shops = {item.shop_product.shop for item in order.items.all() if item.shop_product}
+        for shop in shops:
+          update_verification_status(shop)
     except SellerBalance.DoesNotExist:
       return Response(
         {'error': 'Could not release funds - a seller balance record is missing. Please contact support.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
