@@ -88,7 +88,7 @@ class OrderDetailView(APIView):
     try:
       with transaction.atomic():
         order.status = 'delivered'
-        order.save(update_field =['status', 'updated_at',])
+        order.save(update_fields =['status', 'updated_at',])
         release_pending_to_available(order)
         
         shops = {item.shop_product.shop for item in order.items.all() if item.shop_product}

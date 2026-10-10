@@ -85,8 +85,8 @@ def verify_webhook_signature(request):
   
   
 def release_pending_to_available(order):
-  with tansaction.atomic():
-    for items in order.items.all():
+  with transaction.atomic():
+    for item in order.items.all():
       seller = item.product.user if item.product else item.shop_product.shop.owner
       commission = item.subtotal * PLATFORM_COMMISSION_RATE
       seller_amount = item.subtotal - commission

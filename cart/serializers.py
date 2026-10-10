@@ -4,14 +4,14 @@ from .models import Cart, CartItem
 class CartItemSerializer(serializers.ModelSerializer):
   product_name = serializers.SerializerMethodField()
   product_image = serializers.SerializerMethodField()
+  price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
   subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
   
   class Meta:
     model = CartItem
     fields = [
-      'id', 'product_name', 'quantity', 'price', 'subtotal'
+      'id', 'product_name', 'product_image', 'quantity', 'price', 'subtotal'
     ]
-    read_only_fields = ['price']
     
   def get_product_name(self, obj):
     if obj.product:
@@ -92,8 +92,7 @@ class AddCartItemSerializer(serializers.ModelSerializer):
       existing.save(update_fields=["quantity"])
       return existing
     
-    price = product.price if product else shop_product.price
-    return CartItem.objects.create(cart=cart, product=product, shop_product=shop_product, quantity=quantity, price=price)
+    return CartItem.objects.create(cart=cart, product=product, shop_product=shop_product, quantity=quantity)
     
     
 class UpdateCartItemQuantitySerializer(serializers.ModelSerializer):

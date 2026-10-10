@@ -3,6 +3,7 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from events.services import get_current_price
 
 
 
@@ -25,7 +26,6 @@ class CartItem(models.Model):
   product = models.ForeignKey('products.Product', on_delete=models.CASCADE, null=True, blank=True)
   shop_product = models.ForeignKey('products.Shop_product', on_delete=models.CASCADE, null=True, blank=True)
   quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
-  price = models.DecimalField(max_digits=10, decimal_places=2)
   added_at = models.DateTimeField(auto_now_add=True)
   
   class Meta:
@@ -58,6 +58,12 @@ class CartItem(models.Model):
   def __str__(self):
     name = self.product.name if self.product else self.shop_product.name
     return f"{self.quantity} x {name}"
+    
+  @property
+  def price(self):
+    if self.shop_product:
+      return get_current_price(self.shop_product)
+    return self.product.price
     
   @property
   def subtotal(self):

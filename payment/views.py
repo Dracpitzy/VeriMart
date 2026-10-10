@@ -125,7 +125,7 @@ class SellerPayoutHistoryView(APIView):
   permission_classes = [IsAuthenticated]
   
   def get(self, request):
-    balance, _ = SellerBalance.get_or_create(seller=request.user)
+    balance, _ = SellerBalance.objects.get_or_create(seller=request.user)
     payouts = balance.payouts.all().order_by('-created_at')
     serializer = PayoutSerializer(payouts, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
