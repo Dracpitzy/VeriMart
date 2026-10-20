@@ -11,6 +11,7 @@ import logging
 from rest_framework.throttling import ScopedRateThrottle
 
 from orders.models import Order
+from orders.services import get_order_problems
 from .models import Payment, SellerBalance, Payout
 from .serializers import InitializePaymentSerializer, PaymentSerializer, PayoutSerializer, SellerBalanceSerializer
 from . import services
@@ -29,7 +30,14 @@ class InitializePaymentView(APIView):
     
     if order.status != 'pending':
       return Response(
-        {'error': 'This order cannot be paid for in its current state.'}, status=status.HTTP_400_BAD_REQUEST
+        {'error': 'This order cannot be paid for in its current state. '},
+        status=status.HTTP_400_BAD_REQUEST
+      )
+      
+    problems = get_order_problems(order)
+    if problems:
+      return Response(
+        {'error': problems}, status=status.HTTP_400_BAD_REQUEST
       )
     
     serializer = InitializePaymentSerializer(data={}, context={'order': order})

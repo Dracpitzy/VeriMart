@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
 from rest_framework import status
 from django.db import transaction
+from django.db.models import ProtectedError
 from .models import Category, Shop, ProductImage, Shop_product, Product, ShopReview, ProductReview, ShopBankDetail, ProductAccountDetail
 from .serializers import CategorySerializer, ProductImageSerializer, ShopSerializer, Shop_productSerializer, ProductSerializer, ShopReviewSerializer, ProductReviewSerializer, ShopBankDetailSerializer, ProductAccountDetailSerializer, ShopBankListSerializer, ProductAccountListSerializer
 from orders.models import Order
@@ -170,7 +171,13 @@ class ShopDetailView(APIView):
         {'error': 'Shop not found'},
         status=status.HTTP_400_BAD_REQUEST
         )
-    shop.delete()
+    try:
+      shop.delete()
+    except ProtectedError:
+      return Response(
+        {'error': 'This shop has products that have been ordered, so it cannot be deleted. Deactivate it instead'},
+        status=status.HTTP_409_CONFLICT
+      )
     return Response(
       {'message': 'Shop deleted'},
       status=status.HTTP_204_NO_CONTENT
@@ -239,7 +246,13 @@ class ScheduleShopDeleteDetailView(APIView):
         {'error': 'Shop not found'},
         status=status.HTTP_400_BAD_REQUEST
         )
-    shop.delete()
+    try:
+      shop.delete()
+    except ProtectedError:
+      return Response(
+        {'error': 'This shop has products that have been ordered, so it cannot be deleted. Deactivate it instead.'},
+        status=status.HTTP_409_CONFLICT
+      )
     return Response(
       {'message': 'Shop deleted'},
       status=status.HTTP_204_NO_CONTENT
@@ -280,7 +293,7 @@ class ShopReviewView(APIView):
         {'error': 'You can not review your own shop'},
         status=status.HTTP_403_FORBIDDEN
         )
-    has_bought = Order.objects.filter(buyer=request.user, items__shop_product__shop=shop).exists()
+    has_bought = Order.objects.filter(user=request.user, status='delivered', items__shop_product__shop=shop).exists()
     if not has_bought:
       return Response(
         {'error': 'You must purchase from this shop before reviewing'},
@@ -382,7 +395,7 @@ class Shop_productView(APIView):
       )
       
   def get(self, request, shop_id):
-    shop_products = Shop_product.objects.filter(shop__id=shop_id, is_available=True)
+    shop_products = Shop_product.objects.filter(shop__id=shop_id, is_available=True, shop__is_active=True)
     serializer = Shop_productSerializer(shop_products, many=True)
     return Response(
       serializer.data,
@@ -393,7 +406,7 @@ class Shop_productView(APIView):
 class Shop_productDetailView(APIView):
   def get(self, request, id):
     try:
-      product = Shop_product.objects.get(id=id, is_available=True)
+      product = Shop_product.objects.get(id=id, is_available=True, shop__is_active=True)
     except Shop_product.DoesNotExist:
       return Response(
         {'error': 'product not found'},
@@ -440,7 +453,13 @@ class Shop_productDetailView(APIView):
         {'error':'Not authorized'},
         status=status.HTTP_403_FORBIDDEN
         )
-    product.delete()
+    try:
+      product.delete()
+    except ProtectedError:
+      return Response(
+        {'error': 'This product has been ordered, so it cannot be deleted. Mark it unavailable instead'},
+        status=status.HTTP_409_CONFLICT
+      )
     return Response(
       {'message':'Shop product deleted'},
       status=status.HTTP_204_NO_CONTENT
@@ -605,7 +624,13 @@ class ProductDetailView(APIView):
         {'error': 'Product not found'},
         status=status.HTTP_404_NOT_FOUND
         )
-    product.delete()
+    try:
+      product.delete()
+    except ProtectedError:
+      return Response(
+        {'error': 'This product has been ordered, so it cannot be deleted. The seller can remove it from sale instead.'},
+        status=status.HTTP_409_CONFLICT
+      )
     return Response(
       {'message': 'Product deleted'},
       status=status.HTTP_204_NO_CONTENT
@@ -679,7 +704,7 @@ class CategoryProductShop_productView(APIView):
         )
     products = category.products.filter(is_deleted=False)
     serializer = ProductSerializer(products, many=True)
-    shop_products = category.shop_products.filter(is_available=True)
+    shop_products = category.shop_products.filter(is_available=True, shop__is_active=True)
     shop_productserializer = Shop_productSerializer(shop_products, many=True)
     return Response(
       {'products': serializer.data,
@@ -714,12 +739,11 @@ class ProductReviewView(APIView):
         product = Product.objects.get(id=product_id)
       except Product.DoesNotExist:
         return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
-      has_bought = Order.objects.filter(buyer=request.user, items__product=product).exists()
+      has_bought = Order.objects.filter(user=request.user, status='delivered', items__product=product).exists()
       if not has_bought:
         return Response({'error': 'You must purchase this product before reviewing'}, status=status.HTTP_400_BAD_REQUEST)
-      review_count = ProductReview.objects.filter(product=product, buyer=request.user).count()
-      if review_count >= 3:
-        return Response({'error': 'You can only review a product three times'}, status=status.HTTP_400_BAD_REQUEST)
+      if ProductReview.objects.filter(product=product, buyer=request.user, is_deleted=False).exists():
+        return Response({'error': 'You have already reviewed this product'}, status=status.HTTP_400_BAD_REQUEST)
     elif shop_product_id:
       try:
         shop_product = Shop_product.objects.get(id=shop_product_id)
@@ -728,12 +752,11 @@ class ProductReviewView(APIView):
           {'error': 'Product not found'},
           status=status.HTTP_404_NOT_FOUND
         )
-      has_bought = Order.objects.filter(buyer=request.user, items__shop_product=shop_product).exists()
+      has_bought = Order.objects.filter(user=request.user, status='delivered', items__shop_product=shop_product).exists()
       if not has_bought:
         return Response({'error': 'You must purchase this product before reviewing'}, status=status.HTTP_400_BAD_REQUEST)
-      review_count = ProductReview.objects.filter(shop_product=shop_product, buyer=request.user).count()
-      if review_count >= 3:
-        return Response({'error': 'You can only review a product three times'}, status=status.HTTP_400_BAD_REQUEST)
+      if ProductReview.objects.filter(shop_product=shop_product, buyer=request.user, is_deleted=False).exists():
+        return Response({'error': 'You have already reviewed this product'}, status=status.HTTP_400_BAD_REQUEST)
     serializer = ProductReviewSerializer(data=request.data)
     if serializer.is_valid():
       serializer.save(buyer=request.user, product=product, shop_product=shop_product)

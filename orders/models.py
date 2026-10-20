@@ -17,7 +17,9 @@ class Order(models.Model):
   user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
   status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
   shipping_address = models.TextField()
+  stock_reserved = models.BooleanField(default=False)
   created_at = models.DateTimeField(auto_now_add=True)
+  shipped_at = models.DateTimeField(null=True, blank=True)
   updated_at = models.DateTimeField(auto_now=True)
   
   def __str__(self):
@@ -30,8 +32,8 @@ class Order(models.Model):
   
 class OrderItem(models.Model):
   order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-  product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
-  shop_product = models.ForeignKey(Shop_product, on_delete=models.SET_NULL, null=True, blank=True)
+  product = models.ForeignKey(Product, on_delete=models.PROTECT, null=True, blank=True)
+  shop_product = models.ForeignKey(Shop_product, on_delete=models.PROTECT, null=True, blank=True)
   quantity = models.PositiveIntegerField(default=1)
   price = models.DecimalField(max_digits=10, decimal_places=2)
   

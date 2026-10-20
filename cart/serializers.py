@@ -56,12 +56,14 @@ class AddCartItemSerializer(serializers.ModelSerializer):
   def validate(self, attrs):
     product = attrs.get('product')
     shop_product = attrs.get('shop_product')
-    quantity = attrs.get('quantity')
+    quantity = attrs.get('quantity', 1)
     
     if product and shop_product:
       raise serializers.ValidationError("A cart item cannot reference both a product and a shop_product")
     if not product and not shop_product:
       raise serializers.ValidationError("A cart item must reference either a product or a shop product")
+      if shop_product and not shop_product.shop.is_active:
+        raise serializers.ValidationError('This shop is currently inactive')
       
     request = self.context['request']
     cart, _ = Cart.objects.get_or_create(user=request.user)
@@ -84,7 +86,7 @@ class AddCartItemSerializer(serializers.ModelSerializer):
     
     product = validated_data.get('product')
     shop_product = validated_data.get('shop_product')
-    quantity = validated_data['quantity']
+    quantity = validated_data.get('quantity', 1)
     
     existing = CartItem.objects.filter(cart=cart, product=product, shop_product=shop_product).first()
     if existing:

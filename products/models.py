@@ -124,7 +124,26 @@ class ProductReview(models.Model):
     constraints = [
       models.CheckConstraint(
         condition=models.Q(rating__gte=1) & models.Q(rating__lte=5), name='product_rating_between_1_and_5'
-      )
+      ),
+      
+      models.CheckConstraint(
+        condition=(
+          models.Q(product__isnull=False, shop_product__isnull=True) | models.Q(product__isnull=True, shop_product__isnull=False)
+        ),
+        name='productreview_product_xor_shop_product'
+      ),
+      
+      models.UniqueConstraint(
+        fields=['product', 'buyer'],
+        condition=models.Q(product__isnull=False, is_deleted=False),
+        name='unique_active_review_per_buyer_per_product',
+      ),
+      
+      models.UniqueConstraint(
+        fields=['shop_product', 'buyer'],
+        condition=models.Q(shop_product__isnull=False, is_deleted=False),
+        name='unique_active_review_per_buyer_per_shop_product',
+      ),
     ]
     
   def __str__(self):

@@ -139,6 +139,10 @@ EMAIL_API_KEY = config("RESEND_API_KEY")
 EMAIL_API_URL = "https://api.resend.com/emails"
 DEFAULT_FROM_EMAIL = "VeriMart <onboarding@resend.dev>"
 
+AUTO_CONFIRM_DELIVERY_DAYS = config('AUTO_CONFIRM_DELIVERY_DAYS', default=7, cast=int)
+UNPAID_ORDER_HOURS = config('UNPAID_ORDER_HOURS', default=2, cast=int)
+STALE_CART_DAYS = config('STALE_CART_DAYS', default=90, cast=int)
+
 LOGGING = {
   'version': 1,
   'disable_existing_loggers': False,

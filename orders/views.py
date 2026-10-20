@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.db import transaction
 from .models import Order, OrderItem
 from .serializers import OrderSerializer, OrderItemSerializer, CheckoutSerializer
@@ -11,6 +12,7 @@ from products.models import Product, Shop_product
 from payment.services import release_pending_to_available
 from payment.models import SellerBalance
 from products.services import update_verification_status
+from .services import reserve_order_stock, release_order_stock, mark_order_delivered, InsufficientStock
 
 
 class OrderListCreateView(APIView):
@@ -29,7 +31,7 @@ class OrderListCreateView(APIView):
     if not serializer.is_valid():
       return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     cart = get_object_or_404(Cart, user=request.user)
-    cart_items = CartItem.objects.filter(cart=cart)
+    cart_items = CartItem.objects.filter(cart=cart).select_related('product', 'shop_product__shop')
     if not cart_items.exists():
       return Response(
         {'error': 'Your cart is empty'},
@@ -44,22 +46,56 @@ class OrderListCreateView(APIView):
       if not item.product and not item.shop_product:
         return Response(
           {'error': 'Cart item must have either a product or a shop product'}, status=status.HTTP_400_BAD_REQUEST
-        )   
-        
-    with transaction.atomic():
-      order = Order.objects.create(
-        user=request.user,
-        shipping_address=serializer.validated_data['shipping_address']
-      )
-      for item in cart_items:
-        OrderItem.objects.create(
-          order=order,
-          product=item.product if item.product else None,
-          shop_product=item.shop_product if item.shop_product else None,
-          quantity=item.quantity,
-          price=item.product.price if item.product else item.shop_product.price
         )
-      cart_items.delete()
+        
+    problems = []
+    priced_items = []
+    for item in cart_items:
+      target = item.product or item.shop_product
+      
+      if item.product and item.product.is_deleted:
+        problems.append(f'{target.name} is no longer available')
+        continue
+      if item.shop_product and not item.shop_product.is_available:
+        problems.append(f'{target.name} is no longer available')
+        continue
+      if item.shop_product and not item.shop_product.shop.is_active:
+        problems.append(f'{target.name} is from a shop that is currently inactive')
+        continue
+      if target.stock == 0:
+        problems.append(f'{target.name} is out of stock')
+        continue
+      if item.quantity > target.stock:
+        problems.append(f'Only {target.stock} of {target.name} left in stock')
+        continue
+      
+      priced_items.append((item, item.price))
+      
+      if problems:
+        return Response({'error': problems}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+      with transaction.atomic():
+        order = Order.objects.create(
+          user=request.user,
+          shipping_address=serializer.validated_data['shipping_address']
+        )
+        
+        for item, price in priced_items:
+          OrderItem.objects.create(
+            order=order,
+            product=item.product,
+            shop_product=item.shop_product,
+            quantity=item.quantity,
+            price=price
+          )
+        reserved_order_stock(order)
+        cart_items.delete()
+    except InsufficientStock as error:
+      return Response(
+        {'error': [f'{error.name} just ran out of stock']},
+        status=status.HTTP_400_REQUEST
+      )
     return Response(
       OrderSerializer(order).data,
       status=status.HTTP_201_CREATED
@@ -86,17 +122,15 @@ class OrderDetailView(APIView):
       )
       
     try:
-      with transaction.atomic():
-        order.status = 'delivered'
-        order.save(update_fields =['status', 'updated_at',])
-        release_pending_to_available(order)
-        
-        shops = {item.shop_product.shop for item in order.items.all() if item.shop_product}
-        for shop in shops:
-          update_verification_status(shop)
+      delivered = mark_order_delivered(order)
     except SellerBalance.DoesNotExist:
       return Response(
         {'error': 'Could not release funds - a seller balance record is missing. Please contact support.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+      )
+    if not delivered:
+      return Response(
+        {'error': 'This order can no longer be confirmed as delivered'},
+        status=status.HTTP_400_BAD_REQUEST
       )
       
     return Response(
@@ -140,8 +174,44 @@ class AdminUpdateOrderView(APIView):
         {'error': 'Invalid status'},
         status=status.HTTP_400_BAD_REQUEST
       )
-    order.status = new_status
-    order.save()
+    if new_status == 'paid':
+      return Response(
+        {'error': 'Orders can only be marked paid by the payment flow'},
+        status=status.HTTP_400_BAD_REQUEST
+      )
+      
+    if new_status == 'cancelled' and order.status != 'pending':
+      return Response(
+        {'error': 'Only pending orders can be cancelled. Cancelling a paid order needs a refund, which is not supported yet.'},
+        status=status.HTTP_400_BAD_REQUEST
+      )
+      
+    if new_status == 'delivered':
+      try:
+        delivered = mark_order_delivered(order)
+      except SellerBalance.DoesNotExist:
+        return Response(
+          {'error': 'Could not release funds - a seller balance record is missing. Please contact support.'},
+          status=status.HTTP_500_INTERNAL_SERVER_ERROR
+       )
+      if not delivered:
+        return Response(
+          {'erro': 'Only paid, processing or shipped orders can be marked delivered'},
+          status=status.HTTP_400_BAD_REQUEST
+        )
+      return Response(OrderSerializer(Order).data, status=status.HTTP_200_OK)
+      
+    previous_status = order.status
+    fields_to_save = ['status', 'updated_at']
+      
+    with transaction.atomic():
+      order.status = new_status
+      if new_status == 'shipped' and previous_status != 'shipped':
+        order.shipped_at = timezone.now()
+        fields_to_save.append('shipped_at')
+      order.save(update_fields=fields_to_save)
+      if new_status == 'cancelled':
+        release_order_stock(order)
     serializer = OrderSerializer(order)
     return Response(serializer.data, status=status.HTTP_200_OK)
     

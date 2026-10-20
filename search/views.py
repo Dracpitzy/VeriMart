@@ -24,11 +24,12 @@ class ProductSearchView(APIView):
       
     products = Product.objects.filter(
       Q(name__icontains=query) | Q(description__icontains=query), is_deleted=False
-    )
+    ).select_related('category').prefetch_related('images')
     shop_products = Shop_product.objects.filter(
       Q(name__icontains=query) | Q(description__icontains=query),
-      is_available=True
-    )
+      is_available=True,
+      shop__is_active=True
+    ).select_related('category', 'shop').prefetch_related('images')
     
     product_results = ProductSearchSerializer(products, many=True).data
     shop_product_results = ShopProductSearchSerializer(shop_products, many=True).data
@@ -81,7 +82,8 @@ class SearchSuggestionView(APIView):
     
     shop_products = Shop_product.objects.filter(
       name__icontains=query,
-      is_available=True
+      is_available=True,
+      shop__is_active=True
     )[:SUGGESTION_LIMIT]
     
     product_suggestions = ProductSuggestionSerializer(products, many=True).data
